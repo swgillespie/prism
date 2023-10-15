@@ -1,0 +1,15 @@
+services:
+  minio:
+    image: quay.io/minio/minio
+    command: ["server", "/data", --console-address, ":9001"]
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./.scratch/minio-data:/data
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: hunter2hunter2
+
+volumes:
+  minio-data:
