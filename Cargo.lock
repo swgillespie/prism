@@ -1799,6 +1799,16 @@ dependencies = [
 [[package]]
 name = "prism-query"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "datafusion",
+ "envconfig",
+ "futures",
+ "object_store",
+ "tokio",
+ "url",
+]
 
 [[package]]
 name = "proc-macro-hack"

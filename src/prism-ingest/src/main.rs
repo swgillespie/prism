@@ -26,6 +26,9 @@ struct Config {
 
     #[envconfig(from = "AWS_SECRET_ACCESS_KEY")]
     pub aws_secret_access_key: String,
+
+    #[envconfig(from = "S3_BUCKET_NAME")]
+    pub bucket_name: String,
 }
 
 #[tokio::main]
@@ -42,18 +45,19 @@ async fn run() -> anyhow::Result<()> {
         .with_access_key_id(config.aws_access_key_id)
         .with_secret_access_key(config.aws_secret_access_key)
         .with_region("us-west-2")
-        .with_bucket_name("prism-ingestion")
+        .with_bucket_name(config.bucket_name.clone())
         .build()
         .context("building S3 Object Store")?;
 
     let ctx = SessionContext::new();
-    let url = Url::parse("s3://prism-ingestion").context("building object store URL")?;
+    let url =
+        Url::parse(&format!("s3://{}", config.bucket_name)).context("building object store URL")?;
     ctx.runtime_env()
         .register_object_store(&url, Arc::new(store));
 
     let df = ctx
         .read_json(
-            "s3://prism-ingestion/demo.json",
+            format!("s3://{}/demo.json", config.bucket_name),
             NdJsonReadOptions {
                 schema: None,
                 schema_infer_max_records: DEFAULT_SCHEMA_INFER_MAX_RECORD,
