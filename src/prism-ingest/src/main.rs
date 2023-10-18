@@ -27,7 +27,7 @@ struct Config {
     #[envconfig(from = "AWS_SECRET_ACCESS_KEY")]
     pub aws_secret_access_key: String,
 
-    #[envconfig(from = "S3_BUCKET_NAME")]
+    #[envconfig(from = "INGESTION_BUCKET_NAME")]
     pub bucket_name: String,
 }
 

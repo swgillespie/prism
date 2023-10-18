@@ -1,0 +1,6 @@
+message = parse_json!(.message)
+ts = parse_timestamp!(.timestamp, "%FT%T%.fZ")
+del(.)
+. = message
+.timestamp = ts
+.

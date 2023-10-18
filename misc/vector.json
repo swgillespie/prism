@@ -1,0 +1,29 @@
+{
+  "sources": {
+    "demo": {
+      "type": "demo_logs",
+      "format": "json",
+      "framing": {
+        "method": "newline_delimited"
+      },
+      "interval": 0.1
+    }
+  },
+  "transforms": {
+    "remap": {
+      "type": "remap",
+      "inputs": ["demo"],
+      "file": "./remap.vrl"
+    }
+  },
+  "sinks": {
+    "file": {
+      "type": "file",
+      "inputs": ["remap"],
+      "path": "./demo.json",
+      "encoding": {
+        "codec": "json"
+      }
+    }
+  }
+}

@@ -14,3 +14,7 @@ futures = "0.3.28"
 object_store = { version = "0.7.1", features = ["aws"] }
 tokio.workspace = true
 url = "2.4.1"
+
+prism-proto = { path = "../prism-proto" }
+clap = "4.4.6"
+tonic = "0.10.2"

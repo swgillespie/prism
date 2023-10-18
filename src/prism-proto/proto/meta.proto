@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package prism.meta.v1;
+
+message GetTableSchemaRequest {
+  string table_name = 2;
+}
+
+message GetTableSchemaResponse {
+  string table_name = 1;
+  repeated TableColumn columns = 2;
+}
+
+message TableColumn {
+  string name = 1;
+  ColumnType type = 2;
+}
+
+enum ColumnType {
+  COLUMN_TYPE_UNSPECIFIED = 0;
+  COLUMN_TYPE_INT64 = 1;
+  COLUMN_TYPE_UTF8 = 2;
+}
+
+message GetTablePartitionsRequest {
+  string table_name = 1;
+  optional TimeRange time_range = 2;
+}
+
+message TimeRange {
+  int64 start_time = 1;
+  int64 end_time = 2;
+}
+
+message GetTablePartitionsResponse {
+  string table_name = 1;
+  repeated string partitions = 2;
+}
+
+service MetaService {
+  rpc GetTableSchema(GetTableSchemaRequest) returns (GetTableSchemaResponse) {}
+
+  rpc GetTablePartitions(GetTablePartitionsRequest) returns (GetTablePartitionsResponse) {}
+}
