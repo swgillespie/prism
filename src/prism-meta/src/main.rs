@@ -6,7 +6,7 @@ use envconfig::Envconfig;
 use prism_proto::{
     meta_service_server::{MetaService, MetaServiceServer},
     GetTablePartitionsRequest, GetTablePartitionsResponse, GetTableSchemaRequest,
-    GetTableSchemaResponse, TableColumn,
+    GetTableSchemaResponse, Partition, TableColumn,
 };
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Row};
 use tonic::{transport::Server, Request, Response, Status};
@@ -136,7 +136,7 @@ impl MetaService for Meta {
         } else {
             sqlx::query(
                 r#"
-                SELECT partition_name FROM meta.table_partitions
+                SELECT partition_name, size FROM meta.table_partitions
                 WHERE table_name = $1
             "#,
             )
@@ -146,9 +146,11 @@ impl MetaService for Meta {
             .map_err(|e| Status::internal(format!("database error: {:?}", e)))?
         };
 
-        let mut partitions: Vec<String> = vec![];
+        let mut partitions: Vec<Partition> = vec![];
         for row in rows {
-            partitions.push(row.get(0));
+            let name: String = row.get(0);
+            let size: i64 = row.get(1);
+            partitions.push(Partition { name, size });
         }
 
         Ok(Response::new(GetTablePartitionsResponse {

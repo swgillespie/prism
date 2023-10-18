@@ -18,3 +18,4 @@ url = "2.4.1"
 prism-proto = { path = "../prism-proto" }
 clap = "4.4.6"
 tonic = "0.10.2"
+chrono = "0.4.31"

@@ -1,6 +1,7 @@
 use std::{any::Any, sync::Arc};
 
 use async_trait::async_trait;
+use chrono::Utc;
 use datafusion::{
     arrow::datatypes::{DataType, Field, Schema, SchemaRef},
     catalog::{schema::SchemaProvider, CatalogProvider},
@@ -18,13 +19,13 @@ use datafusion::{
     prelude::Expr,
     scalar::ScalarValue,
 };
-use futures::StreamExt;
-use object_store::path::Path;
+use object_store::{path::Path, ObjectMeta};
 use tokio::sync::Mutex;
 use tonic::{transport::Channel, Request};
-use url::Url;
 
-use prism_proto::{meta_service_client::MetaServiceClient, GetTableSchemaRequest};
+use prism_proto::{
+    meta_service_client::MetaServiceClient, GetTablePartitionsRequest, GetTableSchemaRequest,
+};
 
 pub struct PrismCatalogProvider {
     meta_client: Arc<Mutex<MetaServiceClient<Channel>>>,
@@ -46,7 +47,6 @@ impl CatalogProvider for PrismCatalogProvider {
     }
 
     fn schema(&self, name: &str) -> Option<Arc<dyn SchemaProvider>> {
-        name;
         Some(Arc::new(PrismSchemaProvider::new(
             name.to_string(),
             self.meta_client.clone(),
@@ -55,7 +55,7 @@ impl CatalogProvider for PrismCatalogProvider {
 }
 
 pub struct PrismSchemaProvider {
-    tenant: String,
+    _tenant: String,
     meta_client: Arc<Mutex<MetaServiceClient<Channel>>>,
 }
 
@@ -65,7 +65,7 @@ impl PrismSchemaProvider {
         meta_client: Arc<Mutex<MetaServiceClient<Channel>>>,
     ) -> PrismSchemaProvider {
         PrismSchemaProvider {
-            tenant,
+            _tenant: tenant,
             meta_client,
         }
     }
@@ -102,7 +102,11 @@ impl SchemaProvider for PrismSchemaProvider {
         }
 
         let schema = Arc::new(Schema::new(fields));
-        Some(Arc::new(PrismTableProvider::new(schema, name)))
+        Some(Arc::new(PrismTableProvider::new(
+            schema,
+            name,
+            self.meta_client.clone(),
+        )))
     }
 
     fn table_exist(&self, _: &str) -> bool {
@@ -114,14 +118,20 @@ pub struct PrismTableProvider {
     schema: Arc<Schema>,
     constraints: Constraints,
     table: String,
+    meta_client: Arc<Mutex<MetaServiceClient<Channel>>>,
 }
 
 impl PrismTableProvider {
-    pub fn new(schema: Arc<Schema>, table: impl AsRef<str>) -> Self {
+    pub fn new(
+        schema: Arc<Schema>,
+        table: impl AsRef<str>,
+        meta_client: Arc<Mutex<MetaServiceClient<Channel>>>,
+    ) -> Self {
         Self {
             schema,
             constraints: Constraints::empty(),
             table: table.as_ref().to_string(),
+            meta_client,
         }
     }
 }
@@ -146,35 +156,36 @@ impl TableProvider for PrismTableProvider {
 
     async fn scan(
         &self,
-        state: &SessionState,
+        _state: &SessionState,
         projection: Option<&Vec<usize>>,
         filters: &[Expr],
         limit: Option<usize>,
     ) -> datafusion::common::Result<Arc<dyn ExecutionPlan>> {
         let url_path = format!("s3://prism-storage-b7c0d9c");
-        let table_url =
-            Url::parse(&url_path).map_err(|e| DataFusionError::External(Box::new(e)))?;
-        let obj_store = state
-            .runtime_env()
-            .object_store_registry
-            .get_store(&table_url)?;
         let path = Path::from(self.table.clone());
-        let partitions = obj_store
-            .list(Some(&path))
-            .await?
-            .collect::<Vec<_>>()
+        let mut client = self.meta_client.lock().await;
+        let partitions = client
+            .get_table_partitions(GetTablePartitionsRequest {
+                table_name: self.table.clone(),
+                time_range: None,
+            })
             .await
+            .map_err(|e| DataFusionError::Execution(e.to_string()))?
+            .into_inner()
+            .partitions
             .into_iter()
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .map(|meta| PartitionedFile {
-                object_meta: meta,
+            .map(|p| PartitionedFile {
+                object_meta: ObjectMeta {
+                    size: p.size as usize,
+                    last_modified: Utc::now(),
+                    location: path.child(p.name),
+                    e_tag: None,
+                },
                 partition_values: vec![],
                 range: None,
                 extensions: None,
             })
             .collect::<Vec<_>>();
-
         let config = FileScanConfig {
             object_store_url: ObjectStoreUrl::parse(url_path)?,
             file_schema: self.schema.clone(),

@@ -1,6 +1,7 @@
 use std::{
     io::{self, BufRead, Write},
     sync::Arc,
+    time::Instant,
 };
 
 use clap::Parser;
@@ -69,6 +70,7 @@ async fn repl() -> anyhow::Result<()> {
             break;
         }
 
+        let start = Instant::now();
         let df = match ctx.sql(&buf).await {
             Ok(df) => df,
             Err(e) => {
@@ -81,6 +83,9 @@ async fn repl() -> anyhow::Result<()> {
             writeln!(&mut stdout, "show error: {}", e)?;
             continue;
         }
+
+        let end = Instant::now();
+        writeln!(&mut stdout, "query took {:?}ms", (end - start).as_millis())?;
     }
 
     Ok(())

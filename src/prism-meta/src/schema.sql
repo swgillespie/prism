@@ -8,9 +8,10 @@ CREATE TABLE IF NOT EXISTS meta.table_schemas (
 
 CREATE TABLE IF NOT EXISTS meta.table_partitions (
     table_name TEXT NOT NULL,
-    start_time TIMESTAMPTZ NOT NULL,
-    end_time TIMESTAMPTZ NOT NULL,
+    start_time TIMESTAMPTZ,
+    end_time TIMESTAMPTZ,
     partition_name STRING NOT NULL,
+    size INT8 NOT NULL,
 
     PRIMARY KEY (table_name, partition_name)
 );
@@ -26,3 +27,8 @@ VALUES
     ('web_requests', 'status', 2),
     ('web_requests', 'user-identifier', 2),
     ('web_requests', 'timestamp', 2);
+
+INSERT INTO meta.table_partitions (table_name, start_time, end_time, partition_name, size)
+VALUES
+    ('web_requests', NULL, NULL, 'demo.parquet', 10534),
+    ('web_requests', NULL, NULL, 'demo2.parquet', 14105);
