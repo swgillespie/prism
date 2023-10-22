@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{io, sync::Arc};
 
 use anyhow::Context;
 use datafusion::{
@@ -17,7 +17,11 @@ use datafusion::{
 };
 use envconfig::Envconfig;
 use object_store::aws::AmazonS3Builder;
+use tracing::Level;
+use tracing_subscriber::prelude::*;
 use url::Url;
+
+mod ingest;
 
 #[derive(Envconfig)]
 struct Config {
@@ -40,7 +44,16 @@ async fn main() {
 }
 
 async fn run() -> anyhow::Result<()> {
+    let layer = tracing_subscriber::fmt::layer()
+        .with_writer(io::stderr)
+        .and_then(
+            tracing_subscriber::EnvFilter::from_default_env().add_directive(Level::INFO.into()),
+        )
+        .boxed();
+    tracing_subscriber::registry().with(layer).init();
+
     let config = Config::init_from_env()?;
+
     let store = AmazonS3Builder::new()
         .with_access_key_id(config.aws_access_key_id)
         .with_secret_access_key(config.aws_secret_access_key)
