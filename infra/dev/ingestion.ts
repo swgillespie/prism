@@ -60,6 +60,7 @@ export class Ingestion extends pulumi.ComponentResource {
     const ingestBucket = new aws.s3.Bucket(
       "prism-ingestion",
       {
+        forceDestroy: true,
         lifecycleRules: [
           {
             id: "ttl",
