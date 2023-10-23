@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+option go_package = "./go/proto;proto";
+
 package prism.meta.v1;
 
 message GetTableSchemaRequest {
