@@ -14,7 +14,7 @@ use datafusion::{
     },
     prelude::{NdJsonReadOptions, SessionContext},
 };
-use object_store::ObjectMeta;
+use object_store::path::Path;
 use tracing::{info_span, Instrument};
 
 pub struct Ingestor {
@@ -34,9 +34,11 @@ impl Ingestor {
     pub async fn ingest_new_object(
         &self,
         ctx: &SessionContext,
-        object: ObjectMeta,
+        tenant_id: &str,
+        table: &str,
+        location: &Path,
     ) -> anyhow::Result<()> {
-        let path = format!("s3://{}/{}", self.ingest_bucket_name, object.location);
+        let path = format!("s3://{}/{}", self.ingest_bucket_name, location);
         let read_span = info_span!("read_json", path = %path);
         let df = ctx
             .read_json(
@@ -54,7 +56,7 @@ impl Ingestor {
             )
             .instrument(read_span)
             .await
-            .context(format!("reading raw data {:?} from S3", object.location))?;
+            .context(format!("reading raw data {:?} from S3", location))?;
 
         let props = WriterProperties::builder()
             .set_writer_version(WriterVersion::PARQUET_2_0)
@@ -62,14 +64,13 @@ impl Ingestor {
             .set_compression(Compression::SNAPPY)
             .build();
 
-        let output_folder = object
-            .location
+        let output_folder = location
             .filename()
             .ok_or_else(|| anyhow::anyhow!("getting filename from path"))
             .context("getting filename from path")?;
         let output_path = format!(
-            "s3://{}/{}/{}",
-            self.query_bucket_name, "web_requests", output_folder,
+            "s3://{}/{}/{}/{}",
+            self.query_bucket_name, tenant_id, table, output_folder,
         );
         let write_span = info_span!("write_parquet", path = %output_path);
         df.write_parquet(&output_path, DataFrameWriteOptions::new(), Some(props))
@@ -94,6 +95,8 @@ mod tests {
 
     const INGEST_BUCKET_NAME: &str = "ingest";
     const QUERY_BUCKET_NAME: &str = "query";
+    const TENANT_ID: &str = "tenant";
+    const TABLE: &str = "web_requests";
 
     #[tokio::test]
     async fn basic_ingestion() {
@@ -114,13 +117,16 @@ mod tests {
             .put(&ingest_path, ingest_data)
             .await
             .unwrap();
-        let objmeta = ingestor_memstore.head(&ingest_path).await.unwrap();
         let ingestor = Ingestor::new(INGEST_BUCKET_NAME, QUERY_BUCKET_NAME);
 
-        ingestor.ingest_new_object(&ctx, objmeta).await.unwrap();
+        ingestor
+            .ingest_new_object(&ctx, TENANT_ID, TABLE, &ingest_path)
+            .await
+            .unwrap();
 
+        let target_path = format!("{}/{}/demo.json", TENANT_ID, TABLE);
         let objects = query_memstore
-            .list(Some(&Path::from("web_requests/demo.json")))
+            .list(Some(&Path::from(target_path)))
             .await
             .unwrap()
             .collect::<Vec<_>>()
@@ -128,7 +134,6 @@ mod tests {
             .into_iter()
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
-        println!("{:?}", objects);
         assert_eq!(1, objects.len());
     }
 }

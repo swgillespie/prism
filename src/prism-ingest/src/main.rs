@@ -1,22 +1,11 @@
 use std::{io, sync::Arc};
 
 use anyhow::Context;
-use datafusion::{
-    dataframe::DataFrameWriteOptions,
-    datasource::{
-        file_format::{
-            file_compression_type::FileCompressionType, DEFAULT_SCHEMA_INFER_MAX_RECORD,
-        },
-        listing::ListingTableInsertMode,
-    },
-    parquet::{
-        basic::{Compression, Encoding},
-        file::properties::{WriterProperties, WriterVersion},
-    },
-    prelude::{NdJsonReadOptions, SessionContext},
-};
+use clap::Parser;
+use datafusion::prelude::SessionContext;
 use envconfig::Envconfig;
-use object_store::aws::AmazonS3Builder;
+use ingest::Ingestor;
+use object_store::{aws::AmazonS3Builder, path::Path};
 use tracing::Level;
 use tracing_subscriber::prelude::*;
 use url::Url;
@@ -30,9 +19,23 @@ struct Config {
 
     #[envconfig(from = "AWS_SECRET_ACCESS_KEY")]
     pub aws_secret_access_key: String,
+}
 
-    #[envconfig(from = "INGESTION_BUCKET_NAME")]
-    pub bucket_name: String,
+#[derive(Parser, Debug)]
+#[command(about)]
+struct Args {
+    #[arg(long)]
+    source_bucket: String,
+    #[arg(long)]
+    location: String,
+    #[arg(long)]
+    destination_bucket: String,
+    #[arg(long)]
+    region: String,
+    #[arg(long)]
+    tenant_id: String,
+    #[arg(long)]
+    table: String,
 }
 
 #[tokio::main]
@@ -52,46 +55,38 @@ async fn run() -> anyhow::Result<()> {
         .boxed();
     tracing_subscriber::registry().with(layer).init();
 
+    let args = Args::parse();
     let config = Config::init_from_env()?;
+    let ingestor = Ingestor::new(&args.source_bucket, &args.destination_bucket);
 
-    let store = AmazonS3Builder::new()
-        .with_access_key_id(config.aws_access_key_id)
-        .with_secret_access_key(config.aws_secret_access_key)
-        .with_region("us-west-2")
-        .with_bucket_name(config.bucket_name.clone())
+    let source_store = AmazonS3Builder::new()
+        .with_access_key_id(&config.aws_access_key_id)
+        .with_secret_access_key(&config.aws_secret_access_key)
+        .with_region(&args.region)
+        .with_bucket_name(&args.source_bucket)
         .build()
-        .context("building S3 Object Store")?;
+        .context("building S3 Source Object Store")?;
+    let destination_store = AmazonS3Builder::new()
+        .with_access_key_id(&config.aws_access_key_id)
+        .with_secret_access_key(&config.aws_secret_access_key)
+        .with_region(&args.region)
+        .with_bucket_name(&args.source_bucket)
+        .build()
+        .context("building S3 Source Object Store")?;
 
     let ctx = SessionContext::new();
-    let url =
-        Url::parse(&format!("s3://{}", config.bucket_name)).context("building object store URL")?;
+    let source_url = Url::parse(&format!("s3://{}", &args.source_bucket))
+        .context("building source object store URL")?;
     ctx.runtime_env()
-        .register_object_store(&url, Arc::new(store));
+        .register_object_store(&source_url, Arc::new(source_store));
+    let destination_url = Url::parse(&format!("s3://{}", &args.destination_bucket))
+        .context("building source object store URL")?;
+    ctx.runtime_env()
+        .register_object_store(&destination_url, Arc::new(destination_store));
 
-    let df = ctx
-        .read_json(
-            format!("s3://{}/demo.json", config.bucket_name),
-            NdJsonReadOptions {
-                schema: None,
-                schema_infer_max_records: DEFAULT_SCHEMA_INFER_MAX_RECORD,
-                file_extension: "json",
-                table_partition_cols: vec![],
-                file_compression_type: FileCompressionType::UNCOMPRESSED,
-                infinite: false,
-                file_sort_order: vec![],
-                insert_mode: ListingTableInsertMode::Error,
-            },
-        )
-        .await
-        .context("reading JSON from s3")?;
-
-    let props = WriterProperties::builder()
-        .set_writer_version(WriterVersion::PARQUET_2_0)
-        .set_encoding(Encoding::PLAIN)
-        .set_compression(Compression::SNAPPY)
-        .build();
-    df.write_parquet("./.scratch/out", DataFrameWriteOptions::new(), Some(props))
-        .await
-        .context("writing Parquet to out")?;
+    let location = Path::from(args.location);
+    ingestor
+        .ingest_new_object(&ctx, &args.tenant_id, &args.table, &location)
+        .await?;
     Ok(())
 }
