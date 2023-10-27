@@ -8,6 +8,7 @@
         "@pulumi/aws": "^5.0.0",
         "@pulumi/awsx": "^1.0.6",
         "@pulumi/eks": "^1.0.4",
+        "@pulumi/kubernetes": "^4.5.1",
         "@pulumi/pulumi": "^3.0.0"
     }
 }

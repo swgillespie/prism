@@ -1,2 +1,7 @@
 config:
   aws:region: us-west-2
+  cockroachdb:database: meta
+  cockroachdb:password:
+    secure: AAABABDBX6RwCkqzNQq3UPST+PTdbet6CPcXoWxYUKMJUSja8wtT9uCQS9SwnL3Yoc5tdBxD
+  cockroachdb:url: rational-scepter-10700.6wr.cockroachlabs.cloud:26257
+  cockroachdb:user: sean

@@ -8,15 +8,14 @@ COPY src ./src
 COPY Cargo.toml .
 COPY Cargo.lock .
 RUN cargo build --release --bin prism-ingest
-COPY ./target/release/prism-ingest .
+RUN cp ./target/release/prism-ingest .
 
 COPY --from=golang:1.21.3-bullseye /usr/local/go/ /usr/local/go/
-
 COPY go ./go
 COPY go.mod .
 COPY go.sum .
+RUN /usr/local/go/bin/go build -o prism-infra-worker ./go/services/prism-infra-worker
 
-RUN go build -o prism-infra-worker ./go/services/prism-infra-worker
 CMD ["prism-infra-worker"]
 
 
