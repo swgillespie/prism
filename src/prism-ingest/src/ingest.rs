@@ -1,5 +1,6 @@
 use anyhow::Context;
 use datafusion::{
+    arrow::array::TimestampMillisecondArray,
     dataframe::DataFrameWriteOptions,
     datasource::{
         file_format::{
@@ -7,19 +8,28 @@ use datafusion::{
         },
         listing::ListingTableInsertMode,
     },
+    logical_expr::expr_fn,
     parquet::{
         basic::Compression,
         basic::Encoding,
         file::properties::{WriterProperties, WriterVersion},
     },
-    prelude::{NdJsonReadOptions, SessionContext},
+    prelude::{DataFrame, Expr, NdJsonReadOptions, SessionContext},
 };
 use object_store::path::Path;
 use tracing::{info_span, Instrument};
+use url::Url;
 
 pub struct Ingestor {
     ingest_bucket_name: String,
     query_bucket_name: String,
+}
+
+pub struct Partition {
+    pub name: String,
+    pub size: usize,
+    pub max_ts: i64,
+    pub min_ts: i64,
 }
 
 impl Ingestor {
@@ -37,10 +47,10 @@ impl Ingestor {
         tenant_id: &str,
         table: &str,
         location: &Path,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Partition> {
         let path = format!("s3://{}/{}", self.ingest_bucket_name, location);
         let read_span = info_span!("read_json", path = %path);
-        let df = ctx
+        let mut df = ctx
             .read_json(
                 path,
                 NdJsonReadOptions {
@@ -57,6 +67,38 @@ impl Ingestor {
             .instrument(read_span)
             .await
             .context(format!("reading raw data {:?} from S3", location))?;
+        df = normalize_timestamp(df)?;
+
+        let start_end = df
+            .clone()
+            .aggregate(
+                vec![],
+                vec![
+                    expr_fn::max(expr_fn::col("timestamp")),
+                    expr_fn::min(expr_fn::col("timestamp")),
+                ],
+            )?
+            .collect()
+            .await?;
+        let (max_ts, min_ts) = if start_end.len() != 1 {
+            anyhow::bail!(
+                "expected 1 row in timestamp aggregation, got {}",
+                start_end.len()
+            )
+        } else {
+            let row = &start_end[0];
+            let max_col = row
+                .column(0)
+                .as_any()
+                .downcast_ref::<TimestampMillisecondArray>()
+                .ok_or_else(|| anyhow::anyhow!("ono"))?;
+            let min_col = row
+                .column(1)
+                .as_any()
+                .downcast_ref::<TimestampMillisecondArray>()
+                .ok_or_else(|| anyhow::anyhow!("ono"))?;
+            (max_col.value(0), min_col.value(0))
+        };
 
         let props = WriterProperties::builder()
             .set_writer_version(WriterVersion::PARQUET_2_0)
@@ -64,21 +106,54 @@ impl Ingestor {
             .set_compression(Compression::SNAPPY)
             .build();
 
-        let output_folder = location
+        let output_file = location
             .filename()
             .ok_or_else(|| anyhow::anyhow!("getting filename from path"))
             .context("getting filename from path")?;
-        let output_path = format!(
-            "s3://{}/{}/{}/{}",
-            self.query_bucket_name, tenant_id, table, output_folder,
-        );
-        let write_span = info_span!("write_parquet", path = %output_path);
-        df.write_parquet(&output_path, DataFrameWriteOptions::new(), Some(props))
-            .instrument(write_span)
-            .await
-            .context("writing Parquet to s3")?;
-        Ok(())
+        let output_path = format!("{}/{}/{}.parquet", tenant_id, table, output_file);
+        let s3_output_path = format!("s3://{}/{}", self.query_bucket_name, output_path);
+        let write_span = info_span!("write_parquet", path = %s3_output_path);
+        df.clone().limit(0, Some(5))?.show().await?;
+        df.write_parquet(
+            &s3_output_path,
+            DataFrameWriteOptions::new().with_single_file_output(true),
+            Some(props),
+        )
+        .instrument(write_span)
+        .await
+        .context("writing Parquet to s3")?;
+
+        let url = Url::parse(&s3_output_path)?;
+        let object = ctx
+            .runtime_env()
+            .object_store_registry
+            .get_store(&url)?
+            .head(&Path::from(output_path.as_ref()))
+            .await?;
+
+        Ok(Partition {
+            name: output_path,
+            size: object.size,
+            max_ts,
+            min_ts,
+        })
     }
+}
+
+// normalize_timestamp casts the parses `timestamp` column into a Timestamp type for persistence and also for the
+// computation of max and min timestamp for this partition.
+fn normalize_timestamp(df: DataFrame) -> anyhow::Result<DataFrame> {
+    let schema = df.schema();
+    let mut cols: Vec<Expr> = schema
+        .field_names()
+        .iter()
+        .map(|name| name.strip_prefix("?table?.").unwrap_or_default())
+        .filter(|&name| name != "timestamp")
+        .map(|name| expr_fn::col(name).alias(name))
+        .collect();
+
+    cols.push(expr_fn::to_timestamp_millis(expr_fn::col("timestamp")).alias("timestamp"));
+    Ok(df.select(cols)?)
 }
 
 #[cfg(test)]
@@ -87,7 +162,6 @@ mod tests {
 
     use bytes::Bytes;
     use datafusion::prelude::SessionContext;
-    use futures::StreamExt;
     use object_store::{memory::InMemory, path::Path, ObjectStore};
     use url::Url;
 
@@ -117,23 +191,19 @@ mod tests {
             .put(&ingest_path, ingest_data)
             .await
             .unwrap();
+        let target_path = format!("{}/{}/demo.json.parquet", TENANT_ID, TABLE);
         let ingestor = Ingestor::new(INGEST_BUCKET_NAME, QUERY_BUCKET_NAME);
-
-        ingestor
+        let partition = ingestor
             .ingest_new_object(&ctx, TENANT_ID, TABLE, &ingest_path)
             .await
             .unwrap();
-
-        let target_path = format!("{}/{}/demo.json", TENANT_ID, TABLE);
-        let objects = query_memstore
-            .list(Some(&Path::from(target_path)))
+        assert_eq!(partition.name, target_path);
+        assert!(partition.size > 0);
+        assert_eq!(partition.max_ts, 1698000995523);
+        assert_eq!(partition.min_ts, 1698000992225);
+        query_memstore
+            .head(&Path::from(target_path))
             .await
-            .unwrap()
-            .collect::<Vec<_>>()
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>, _>>()
-            .unwrap();
-        assert_eq!(1, objects.len());
+            .expect("object should be present in query memstore");
     }
 }

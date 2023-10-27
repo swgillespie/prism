@@ -1,21 +1,28 @@
 CREATE TABLE meta.table_schemas (
-    table_name TEXT NOT NULL,
+    tenant_id VARCHAR(255) NOT NULL,
+    table_name VARCHAR(255) NOT NULL,
     column_name TEXT NOT NULL,
     type INT4 NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    PRIMARY KEY (table_name, column_name)
+    PRIMARY KEY (tenant_id, table_name, column_name)
 );
 
 CREATE TABLE meta.table_partitions (
-    table_name TEXT NOT NULL,
+    tenant_id VARCHAR(255) NOT NULL,
+    table_name VARCHAR(255) NOT NULL,
     start_time TIMESTAMPTZ,
     end_time TIMESTAMPTZ,
-    partition_name STRING NOT NULL,
+    partition_name TEXT NOT NULL,
     size INT8 NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    PRIMARY KEY (table_name, partition_name)
+    PRIMARY KEY (tenant_id, table_name, partition_name)
 );
 
+/*
 INSERT INTO meta.table_schemas (table_name, column_name, type)
 VALUES
     ('web_requests', 'bytes', 1),
@@ -32,3 +39,4 @@ INSERT INTO meta.table_partitions (table_name, start_time, end_time, partition_n
 VALUES
     ('web_requests', NULL, NULL, 'demo.parquet', 10534),
     ('web_requests', NULL, NULL, 'demo2.parquet', 14105);
+*/

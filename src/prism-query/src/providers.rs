@@ -55,7 +55,7 @@ impl CatalogProvider for PrismCatalogProvider {
 }
 
 pub struct PrismSchemaProvider {
-    _tenant: String,
+    tenant: String,
     meta_client: Arc<Mutex<MetaServiceClient<Channel>>>,
 }
 
@@ -65,7 +65,7 @@ impl PrismSchemaProvider {
         meta_client: Arc<Mutex<MetaServiceClient<Channel>>>,
     ) -> PrismSchemaProvider {
         PrismSchemaProvider {
-            _tenant: tenant,
+            tenant: tenant,
             meta_client,
         }
     }
@@ -85,6 +85,7 @@ impl SchemaProvider for PrismSchemaProvider {
         let mut client = self.meta_client.lock().await;
         let resp = client
             .get_table_schema(Request::new(GetTableSchemaRequest {
+                tenant_id: self.tenant.clone(),
                 table_name: name.to_string(),
             }))
             .await
@@ -104,6 +105,7 @@ impl SchemaProvider for PrismSchemaProvider {
         let schema = Arc::new(Schema::new(fields));
         Some(Arc::new(PrismTableProvider::new(
             schema,
+            &self.tenant,
             name,
             self.meta_client.clone(),
         )))
@@ -117,6 +119,7 @@ impl SchemaProvider for PrismSchemaProvider {
 pub struct PrismTableProvider {
     schema: Arc<Schema>,
     constraints: Constraints,
+    tenant: String,
     table: String,
     meta_client: Arc<Mutex<MetaServiceClient<Channel>>>,
 }
@@ -124,12 +127,14 @@ pub struct PrismTableProvider {
 impl PrismTableProvider {
     pub fn new(
         schema: Arc<Schema>,
+        tenant: impl AsRef<str>,
         table: impl AsRef<str>,
         meta_client: Arc<Mutex<MetaServiceClient<Channel>>>,
     ) -> Self {
         Self {
             schema,
             constraints: Constraints::empty(),
+            tenant: tenant.as_ref().to_string(),
             table: table.as_ref().to_string(),
             meta_client,
         }
@@ -166,6 +171,7 @@ impl TableProvider for PrismTableProvider {
         let mut client = self.meta_client.lock().await;
         let partitions = client
             .get_table_partitions(GetTablePartitionsRequest {
+                tenant_id: self.tenant.clone(),
                 table_name: self.table.clone(),
                 time_range: None,
             })

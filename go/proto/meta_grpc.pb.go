@@ -24,6 +24,7 @@ const _ = grpc.SupportPackageIsVersion7
 type MetaServiceClient interface {
 	GetTableSchema(ctx context.Context, in *GetTableSchemaRequest, opts ...grpc.CallOption) (*GetTableSchemaResponse, error)
 	GetTablePartitions(ctx context.Context, in *GetTablePartitionsRequest, opts ...grpc.CallOption) (*GetTablePartitionsResponse, error)
+	RecordNewPartitions(ctx context.Context, in *RecordNewPartitionsRequest, opts ...grpc.CallOption) (*RecordNewPartitionsResponse, error)
 }
 
 type metaServiceClient struct {
@@ -52,12 +53,22 @@ func (c *metaServiceClient) GetTablePartitions(ctx context.Context, in *GetTable
 	return out, nil
 }
 
+func (c *metaServiceClient) RecordNewPartitions(ctx context.Context, in *RecordNewPartitionsRequest, opts ...grpc.CallOption) (*RecordNewPartitionsResponse, error) {
+	out := new(RecordNewPartitionsResponse)
+	err := c.cc.Invoke(ctx, "/prism.meta.v1.MetaService/RecordNewPartitions", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MetaServiceServer is the server API for MetaService service.
 // All implementations must embed UnimplementedMetaServiceServer
 // for forward compatibility
 type MetaServiceServer interface {
 	GetTableSchema(context.Context, *GetTableSchemaRequest) (*GetTableSchemaResponse, error)
 	GetTablePartitions(context.Context, *GetTablePartitionsRequest) (*GetTablePartitionsResponse, error)
+	RecordNewPartitions(context.Context, *RecordNewPartitionsRequest) (*RecordNewPartitionsResponse, error)
 	mustEmbedUnimplementedMetaServiceServer()
 }
 
@@ -70,6 +81,9 @@ func (UnimplementedMetaServiceServer) GetTableSchema(context.Context, *GetTableS
 }
 func (UnimplementedMetaServiceServer) GetTablePartitions(context.Context, *GetTablePartitionsRequest) (*GetTablePartitionsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTablePartitions not implemented")
+}
+func (UnimplementedMetaServiceServer) RecordNewPartitions(context.Context, *RecordNewPartitionsRequest) (*RecordNewPartitionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RecordNewPartitions not implemented")
 }
 func (UnimplementedMetaServiceServer) mustEmbedUnimplementedMetaServiceServer() {}
 
@@ -120,6 +134,24 @@ func _MetaService_GetTablePartitions_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MetaService_RecordNewPartitions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RecordNewPartitionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MetaServiceServer).RecordNewPartitions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/prism.meta.v1.MetaService/RecordNewPartitions",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MetaServiceServer).RecordNewPartitions(ctx, req.(*RecordNewPartitionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MetaService_ServiceDesc is the grpc.ServiceDesc for MetaService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -134,6 +166,10 @@ var MetaService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTablePartitions",
 			Handler:    _MetaService_GetTablePartitions_Handler,
+		},
+		{
+			MethodName: "RecordNewPartitions",
+			Handler:    _MetaService_RecordNewPartitions_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
