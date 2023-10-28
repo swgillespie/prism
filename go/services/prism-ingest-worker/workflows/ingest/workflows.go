@@ -4,8 +4,8 @@ import (
 	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
 
-	"code.prism.io/go/proto"
 	"code.prism.io/go/services/prism-ingest-worker/config"
+	metav1 "code.prism.io/proto/gen/go/prism/meta/v1"
 )
 
 type (
@@ -17,7 +17,7 @@ type (
 		metaClientProvider MetaClientProvider
 	}
 
-	MetaClientProvider func() (proto.MetaServiceClient, error)
+	MetaClientProvider func() (metav1.MetaServiceClient, error)
 )
 
 func Register(w worker.Worker, wf *workflows, a *activities) {

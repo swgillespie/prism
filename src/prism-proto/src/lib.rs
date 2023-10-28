@@ -1,1 +1,1 @@
-tonic::include_proto!("prism.meta.v1");
+include!("../../../proto/gen/rust/prism.meta.v1.rs");

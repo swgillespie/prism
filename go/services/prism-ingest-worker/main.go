@@ -11,10 +11,10 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 
-	"code.prism.io/go/proto"
 	"code.prism.io/go/services/prism-ingest-worker/clients/meta"
 	"code.prism.io/go/services/prism-ingest-worker/config"
 	"code.prism.io/go/services/prism-ingest-worker/workflows/ingest"
+	metav1 "code.prism.io/proto/gen/go/prism/meta/v1"
 )
 
 var (
@@ -42,7 +42,7 @@ func init() {
 }
 
 func newMetaClientProvider(metaConfig *config.Meta) ingest.MetaClientProvider {
-	return func() (proto.MetaServiceClient, error) {
+	return func() (metav1.MetaServiceClient, error) {
 		return meta.NewClient(metaConfig)
 	}
 }

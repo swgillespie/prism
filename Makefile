@@ -4,13 +4,13 @@ WHITE  := $(shell tput -Txterm setaf 7)
 CYAN   := $(shell tput -Txterm setaf 6)
 RESET  := $(shell tput -Txterm sgr0)
 
-
 ## Dev
 install-dependencies: ## Installs all compile-time dependencies.
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
 	go install -tags 'cockroachdb' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.16.2
 	go install github.com/golang/mock/mockgen@v1.6.0
+	go install github.com/bufbuild/buf/cmd/buf@v1.27.2
 
 generate:
 	protoc --go_out=.   \

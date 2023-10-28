@@ -19,7 +19,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
-	"code.prism.io/go/proto"
+	metav1 "code.prism.io/proto/gen/go/prism/meta/v1"
 )
 
 var (
@@ -51,7 +51,7 @@ type (
 	}
 
 	server struct {
-		proto.UnimplementedMetaServiceServer
+		metav1.UnimplementedMetaServiceServer
 
 		pool *pgxpool.Pool
 	}
@@ -63,7 +63,7 @@ func init() {
 	serverCmd.Flags().IntVarP(&port, "port", "p", 8080, "Port to listen on")
 }
 
-func (s *server) GetTableSchema(ctx context.Context, req *proto.GetTableSchemaRequest) (*proto.GetTableSchemaResponse, error) {
+func (s *server) GetTableSchema(ctx context.Context, req *metav1.GetTableSchemaRequest) (*metav1.GetTableSchemaResponse, error) {
 	conn, err := s.pool.Acquire(ctx)
 	if err != nil {
 		return nil, status.New(codes.Internal, err.Error()).Err()
@@ -78,7 +78,7 @@ func (s *server) GetTableSchema(ctx context.Context, req *proto.GetTableSchemaRe
 	}
 
 	defer rows.Close()
-	var columns []*proto.TableColumn
+	var columns []*metav1.TableColumn
 	for rows.Next() {
 		var name string
 		var ty int32
@@ -86,9 +86,9 @@ func (s *server) GetTableSchema(ctx context.Context, req *proto.GetTableSchemaRe
 			return nil, status.New(codes.Internal, err.Error()).Err()
 		}
 
-		columns = append(columns, &proto.TableColumn{
+		columns = append(columns, &metav1.TableColumn{
 			Name: name,
-			Type: proto.ColumnType(ty),
+			Type: metav1.ColumnType(ty),
 		})
 	}
 
@@ -96,13 +96,13 @@ func (s *server) GetTableSchema(ctx context.Context, req *proto.GetTableSchemaRe
 		return nil, status.New(codes.NotFound, "table not found").Err()
 	}
 
-	return &proto.GetTableSchemaResponse{
+	return &metav1.GetTableSchemaResponse{
 		TableName: req.TableName,
 		Columns:   columns,
 	}, nil
 }
 
-func (s *server) GetTablePartitions(ctx context.Context, req *proto.GetTablePartitionsRequest) (*proto.GetTablePartitionsResponse, error) {
+func (s *server) GetTablePartitions(ctx context.Context, req *metav1.GetTablePartitionsRequest) (*metav1.GetTablePartitionsResponse, error) {
 	conn, err := s.pool.Acquire(ctx)
 	if err != nil {
 		return nil, status.New(codes.Internal, err.Error()).Err()
@@ -133,7 +133,7 @@ func (s *server) GetTablePartitions(ctx context.Context, req *proto.GetTablePart
 		}
 	}
 
-	var partitions []*proto.Partition
+	var partitions []*metav1.Partition
 	for rows.Next() {
 		var name string
 		var size int64
@@ -141,7 +141,7 @@ func (s *server) GetTablePartitions(ctx context.Context, req *proto.GetTablePart
 			return nil, status.New(codes.Internal, err.Error()).Err()
 		}
 
-		partitions = append(partitions, &proto.Partition{
+		partitions = append(partitions, &metav1.Partition{
 			Name: name,
 			Size: size,
 		})
@@ -151,13 +151,13 @@ func (s *server) GetTablePartitions(ctx context.Context, req *proto.GetTablePart
 		return nil, status.New(codes.NotFound, "table not found").Err()
 	}
 
-	return &proto.GetTablePartitionsResponse{
+	return &metav1.GetTablePartitionsResponse{
 		TableName:  req.TableName,
 		Partitions: partitions,
 	}, nil
 }
 
-func (s *server) RecordNewPartition(ctx context.Context, req *proto.RecordNewPartitionRequest) (*proto.RecordNewPartitionResponse, error) {
+func (s *server) RecordNewPartition(ctx context.Context, req *metav1.RecordNewPartitionRequest) (*metav1.RecordNewPartitionResponse, error) {
 	conn, err := s.pool.Acquire(ctx)
 	if err != nil {
 		return nil, status.New(codes.Internal, err.Error()).Err()
@@ -193,7 +193,7 @@ func (s *server) RecordNewPartition(ctx context.Context, req *proto.RecordNewPar
 		return nil, status.New(codes.Internal, err.Error()).Err()
 	}
 
-	return &proto.RecordNewPartitionResponse{}, nil
+	return &metav1.RecordNewPartitionResponse{}, nil
 }
 
 func loadConfig() (*config, error) {
@@ -223,7 +223,7 @@ func newServer(pool *pgxpool.Pool) *server {
 
 func newGrpcServer(s *server, lifecycle fx.Lifecycle) *grpc.Server {
 	grpcServer := grpc.NewServer()
-	proto.RegisterMetaServiceServer(grpcServer, s)
+	metav1.RegisterMetaServiceServer(grpcServer, s)
 	if reflect {
 		reflection.Register(grpcServer)
 	}
