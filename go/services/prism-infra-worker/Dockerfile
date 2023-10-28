@@ -16,6 +16,6 @@ COPY go.mod .
 COPY go.sum .
 RUN /usr/local/go/bin/go build -o prism-infra-worker ./go/services/prism-infra-worker
 
-CMD ["prism-infra-worker"]
+CMD ["prism-infra-worker", "--config", "/etc/prism/config.yaml"]
 
 

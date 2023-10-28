@@ -5,7 +5,7 @@ use clap::Parser;
 use datafusion::prelude::SessionContext;
 use envconfig::Envconfig;
 use ingest::Ingestor;
-use object_store::{aws::AmazonS3Builder, path::Path};
+use object_store::{aws::AmazonS3Builder, local::LocalFileSystem, path::Path};
 use tracing::Level;
 use tracing_subscriber::prelude::*;
 use url::Url;
@@ -19,23 +19,26 @@ struct Config {
 
     #[envconfig(from = "AWS_SECRET_ACCESS_KEY")]
     pub aws_secret_access_key: String,
+
+    #[envconfig(from = "AWS_REGION")]
+    pub aws_region: String,
 }
 
 #[derive(Parser, Debug)]
 #[command(about)]
 struct Args {
     #[arg(long)]
-    source_bucket: String,
+    source: String,
     #[arg(long)]
     location: String,
     #[arg(long)]
-    destination_bucket: String,
-    #[arg(long)]
-    region: String,
+    destination: String,
     #[arg(long)]
     tenant_id: String,
     #[arg(long)]
     table: String,
+    #[arg(long)]
+    s3: bool,
 }
 
 #[tokio::main]
@@ -56,37 +59,64 @@ async fn run() -> anyhow::Result<()> {
     tracing_subscriber::registry().with(layer).init();
 
     let args = Args::parse();
-    let config = Config::init_from_env()?;
-    let ingestor = Ingestor::new(&args.source_bucket, &args.destination_bucket);
-
-    let source_store = AmazonS3Builder::new()
-        .with_access_key_id(&config.aws_access_key_id)
-        .with_secret_access_key(&config.aws_secret_access_key)
-        .with_region(&args.region)
-        .with_bucket_name(&args.source_bucket)
-        .build()
-        .context("building S3 Source Object Store")?;
-    let destination_store = AmazonS3Builder::new()
-        .with_access_key_id(&config.aws_access_key_id)
-        .with_secret_access_key(&config.aws_secret_access_key)
-        .with_region(&args.region)
-        .with_bucket_name(&args.source_bucket)
-        .build()
-        .context("building S3 Source Object Store")?;
-
     let ctx = SessionContext::new();
-    let source_url = Url::parse(&format!("s3://{}", &args.source_bucket))
+    let ingestor = initialize_session(&args, &ctx)?;
+    let location = Path::from(args.location);
+    let partition = ingestor
+        .ingest_new_object(&ctx, &args.tenant_id, &args.table, &location)
+        .await?;
+
+    let output = serde_json::to_string_pretty(&partition)?;
+    println!("{}", output);
+    Ok(())
+}
+
+fn initialize_session(args: &Args, ctx: &SessionContext) -> anyhow::Result<Ingestor> {
+    const LOCAL_SOURCE_BUCKET: &str = "source";
+    const LOCAL_DESTINATION_BUCKET: &str = "destination";
+
+    if args.s3 {
+        tracing::info!(source = %args.source, destination = %args.destination, "using s3 storage");
+        let config = Config::init_from_env()?;
+        let source_store = AmazonS3Builder::new()
+            .with_access_key_id(&config.aws_access_key_id)
+            .with_secret_access_key(&config.aws_secret_access_key)
+            .with_region(&config.aws_region)
+            .with_bucket_name(&args.source)
+            .build()
+            .context("building S3 Source Object Store")?;
+        let destination_store = AmazonS3Builder::new()
+            .with_access_key_id(&config.aws_access_key_id)
+            .with_secret_access_key(&config.aws_secret_access_key)
+            .with_region(&config.aws_region)
+            .with_bucket_name(&args.destination)
+            .build()
+            .context("building S3 Destination Object Store")?;
+        let source_url = Url::parse(&format!("s3://{}", &args.source))
+            .context("building source object store URL")?;
+        ctx.runtime_env()
+            .register_object_store(&source_url, Arc::new(source_store));
+        let destination_url = Url::parse(&format!("s3://{}", &args.destination))
+            .context("building source object store URL")?;
+        ctx.runtime_env()
+            .register_object_store(&destination_url, Arc::new(destination_store));
+        let ingestor = Ingestor::new(&args.source, &args.destination);
+        return Ok(ingestor);
+    }
+
+    tracing::info!(source = %args.source, destination = %args.destination, "using local storage");
+    let source_store = LocalFileSystem::new_with_prefix(std::path::Path::new(&args.source))?;
+    let destination_store =
+        LocalFileSystem::new_with_prefix(std::path::Path::new(&args.destination))?;
+
+    let source_url = Url::parse(&format!("s3://{}", LOCAL_SOURCE_BUCKET))
         .context("building source object store URL")?;
     ctx.runtime_env()
         .register_object_store(&source_url, Arc::new(source_store));
-    let destination_url = Url::parse(&format!("s3://{}", &args.destination_bucket))
+    let destination_url = Url::parse(&format!("s3://{}", LOCAL_DESTINATION_BUCKET))
         .context("building source object store URL")?;
     ctx.runtime_env()
         .register_object_store(&destination_url, Arc::new(destination_store));
-
-    let location = Path::from(args.location);
-    ingestor
-        .ingest_new_object(&ctx, &args.tenant_id, &args.table, &location)
-        .await?;
-    Ok(())
+    let ingestor = Ingestor::new(LOCAL_SOURCE_BUCKET, LOCAL_DESTINATION_BUCKET);
+    Ok(ingestor)
 }

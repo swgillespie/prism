@@ -1,26 +1,54 @@
 package ingest
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"time"
 
-	"github.com/aws/aws-lambda-go/events"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/workflow"
+
+	"code.prism.io/go/proto"
 )
 
 type (
 	IngestInput struct {
-		Event events.S3EventRecord
+		TenantID    string
+		Table       string
+		Source      string
+		Destination string
+		Location    string
 	}
 
 	IngestTransformToParquetInput struct {
-		TenantID          string
-		Table             string
-		DestinationBucket string
-		Event             events.S3EventRecord
+		TenantID    string
+		Table       string
+		Source      string
+		Destination string
+		Location    string
+	}
+
+	IngestRecordNewPartitionInput struct {
+		TenantID  string
+		Table     string
+		Partition Partition
+	}
+
+	// Keep synchronized with prism-ingest/src/ingest.rs!
+	Partition struct {
+		Name    string `json:"name"`
+		Size    uint64 `json:"size"`
+		MaxTS   int64  `json:"max_ts"`
+		MinTS   int64  `json:"min_ts"`
+		Columns []Column
+	}
+
+	Column struct {
+		Name     string `json:"name"`
+		DataType string `json:"data_type"`
 	}
 )
 
@@ -29,33 +57,53 @@ const (
 )
 
 func (w *workflows) Ingest(ctx workflow.Context, input IngestInput) error {
+	var partition Partition
 	err := workflow.ExecuteActivity(ctx, (*activities).IngestTransformToParquet, IngestTransformToParquetInput{
-		TenantID:          "test",
-		Table:             "web_requests",
-		DestinationBucket: "test",
-		Event:             input.Event,
+		TenantID:    input.TenantID,
+		Table:       input.Table,
+		Source:      input.Source,
+		Destination: input.Destination,
+		Location:    input.Location,
+	}).Get(ctx, &partition)
+	if err != nil {
+		return err
+	}
+
+	err = workflow.ExecuteActivity(ctx, (*activities).IngestRecordNewPartition, IngestRecordNewPartitionInput{
+		TenantID:  "test",
+		Table:     "web_requests",
+		Partition: partition,
 	}).Get(ctx, nil)
 	return err
 }
 
-func (a *activities) IngestTransformToParquet(ctx context.Context, input IngestTransformToParquetInput) error {
+func (a *activities) IngestTransformToParquet(ctx context.Context, input IngestTransformToParquetInput) (Partition, error) {
 	cmd := exec.CommandContext(ctx, "prism-ingest",
-		"--source-bucket", input.Event.S3.Bucket.Name,
-		"--location", input.Event.S3.Object.Key,
-		"--destination-bucket", input.DestinationBucket,
-		"--region", input.Event.AWSRegion,
+		"--source", input.Source,
+		"--location", input.Location,
+		"--destination", input.Destination,
 		"--tenant-id", input.TenantID,
 		"--table", input.Table,
 	)
-	cmd.Stdout = os.Stdout
+
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
-		return err
+		return Partition{}, err
 	}
 
+	var result Partition
 	doneChan := make(chan error)
 	go func() {
-		doneChan <- cmd.Wait()
+		err := cmd.Wait()
+		if err != nil {
+			doneChan <- err
+			return
+		}
+
+		err = json.Unmarshal(buf.Bytes(), &result)
+		doneChan <- err
 		close(doneChan)
 	}()
 
@@ -65,12 +113,55 @@ func (a *activities) IngestTransformToParquet(ctx context.Context, input IngestT
 		select {
 		case <-ctx.Done():
 			if err := cmd.Process.Kill(); err != nil {
-				return err
+				return Partition{}, err
 			}
 		case err := <-doneChan:
-			return err
+			return result, err
 		case <-ticker.C:
 			activity.RecordHeartbeat(ctx, nil)
 		}
+	}
+}
+
+func (a *activities) IngestRecordNewPartition(ctx context.Context, input IngestRecordNewPartitionInput) error {
+	client, err := a.metaClientProvider()
+	if err != nil {
+		return err
+	}
+
+	var columns []*proto.TableColumn
+	for _, column := range input.Partition.Columns {
+		columns = append(columns, &proto.TableColumn{
+			Name: column.Name,
+			Type: ingestorTypeToProto(column.DataType),
+		})
+	}
+
+	_, err = client.RecordNewPartition(ctx, &proto.RecordNewPartitionRequest{
+		TenantId:  input.TenantID,
+		TableName: input.Table,
+		Partition: &proto.Partition{
+			Name: input.Partition.Name,
+			Size: int64(input.Partition.Size),
+			TimeRange: &proto.TimeRange{
+				StartTime: input.Partition.MinTS,
+				EndTime:   input.Partition.MaxTS,
+			},
+		},
+		Columns: columns,
+	})
+	return err
+}
+
+func ingestorTypeToProto(ingestorType string) proto.ColumnType {
+	switch ingestorType {
+	case "Int64":
+		return proto.ColumnType_COLUMN_TYPE_INT64
+	case "String":
+		return proto.ColumnType_COLUMN_TYPE_UTF8
+	case "Timestamp":
+		return proto.ColumnType_COLUMN_TYPE_TIMESTAMP
+	default:
+		return proto.ColumnType_COLUMN_TYPE_UNSPECIFIED
 	}
 }

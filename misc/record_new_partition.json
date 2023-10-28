@@ -1,0 +1,26 @@
+{
+  "tenant_id": "demo",
+  "table_name": "test",
+  "partition": {
+    "name": "demo2.parquet",
+    "size": 9999,
+    "time_range": {
+      "start_time": 0,
+      "end_time": 9999
+    }
+  },
+  "columns": [
+    {
+      "name": "test",
+      "type": "COLUMN_TYPE_INT64"
+    },
+    {
+      "name": "test2",
+      "type": "COLUMN_TYPE_UTF8"
+    },
+    {
+      "name": "timestamp",
+      "type": "COLUMN_TYPE_TIMESTAMP"
+    }
+  ]
+}

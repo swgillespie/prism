@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
+	crdbpgx "github.com/cockroachdb/cockroach-go/v2/crdb/crdbpgxv5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kelseyhightower/envconfig"
@@ -69,8 +71,8 @@ func (s *server) GetTableSchema(ctx context.Context, req *proto.GetTableSchemaRe
 
 	rows, err := conn.Query(ctx, `
 		SELECT column_name, type FROM meta.table_schemas
-		WHERE table_name = $1
-	`, req.TableName)
+		WHERE tenant_id = $1 AND table_name = $2
+	`, req.TenantId, req.TableName)
 	if err != nil {
 		return nil, status.New(codes.Internal, err.Error()).Err()
 	}
@@ -153,6 +155,45 @@ func (s *server) GetTablePartitions(ctx context.Context, req *proto.GetTablePart
 		TableName:  req.TableName,
 		Partitions: partitions,
 	}, nil
+}
+
+func (s *server) RecordNewPartition(ctx context.Context, req *proto.RecordNewPartitionRequest) (*proto.RecordNewPartitionResponse, error) {
+	conn, err := s.pool.Acquire(ctx)
+	if err != nil {
+		return nil, status.New(codes.Internal, err.Error()).Err()
+	}
+
+	err = crdbpgx.ExecuteTx(ctx, conn, pgx.TxOptions{}, func(tx pgx.Tx) error {
+		batch := &pgx.Batch{}
+		for _, column := range req.GetColumns() {
+			batch.Queue(`
+			UPSERT INTO meta.table_schemas (tenant_id, table_name, column_name, type, updated_at)
+			VALUES ($1, $2, $3, $4, now())
+			`, req.GetTenantId(), req.GetTableName(), column.GetName(), column.GetType())
+		}
+
+		br := tx.SendBatch(ctx, batch)
+		return br.Close()
+	})
+	if err != nil {
+		return nil, status.New(codes.Internal, err.Error()).Err()
+	}
+
+	partition := req.GetPartition()
+	startTime := time.Unix(partition.GetTimeRange().GetStartTime()/1000, 0).Format(time.RFC3339)
+	endTime := time.Unix(partition.GetTimeRange().GetEndTime()/1000, 0).Format(time.RFC3339)
+	name := partition.GetName()
+	size := partition.GetSize()
+
+	_, err = conn.Exec(ctx, `
+	INSERT INTO meta.table_partitions (tenant_id, table_name, start_time, end_time, partition_name, size)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	`, req.GetTenantId(), req.GetTableName(), startTime, endTime, name, size)
+	if err != nil {
+		return nil, status.New(codes.Internal, err.Error()).Err()
+	}
+
+	return &proto.RecordNewPartitionResponse{}, nil
 }
 
 func loadConfig() (*config, error) {

@@ -1,6 +1,6 @@
 use anyhow::Context;
 use datafusion::{
-    arrow::array::TimestampMillisecondArray,
+    arrow::{array::TimestampMillisecondArray, datatypes::DataType},
     dataframe::DataFrameWriteOptions,
     datasource::{
         file_format::{
@@ -17,6 +17,7 @@ use datafusion::{
     prelude::{DataFrame, Expr, NdJsonReadOptions, SessionContext},
 };
 use object_store::path::Path;
+use serde::Serialize;
 use tracing::{info_span, Instrument};
 use url::Url;
 
@@ -25,11 +26,37 @@ pub struct Ingestor {
     query_bucket_name: String,
 }
 
+#[derive(Serialize, Debug)]
 pub struct Partition {
     pub name: String,
     pub size: usize,
     pub max_ts: i64,
     pub min_ts: i64,
+    pub columns: Vec<Column>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct Column {
+    pub name: String,
+    pub data_type: ColumnType,
+}
+
+#[derive(Serialize, Debug)]
+pub enum ColumnType {
+    String,
+    Int64,
+    Timestamp,
+}
+
+impl From<&DataType> for ColumnType {
+    fn from(dt: &DataType) -> Self {
+        match dt {
+            DataType::Utf8 => Self::String,
+            DataType::Int64 => Self::Int64,
+            DataType::Timestamp(_, _) => Self::Timestamp,
+            _ => unimplemented!(),
+        }
+    }
 }
 
 impl Ingestor {
@@ -113,7 +140,7 @@ impl Ingestor {
         let output_path = format!("{}/{}/{}.parquet", tenant_id, table, output_file);
         let s3_output_path = format!("s3://{}/{}", self.query_bucket_name, output_path);
         let write_span = info_span!("write_parquet", path = %s3_output_path);
-        df.clone().limit(0, Some(5))?.show().await?;
+        let columns = gather_columns(&df);
         df.write_parquet(
             &s3_output_path,
             DataFrameWriteOptions::new().with_single_file_output(true),
@@ -136,6 +163,7 @@ impl Ingestor {
             size: object.size,
             max_ts,
             min_ts,
+            columns,
         })
     }
 }
@@ -154,6 +182,18 @@ fn normalize_timestamp(df: DataFrame) -> anyhow::Result<DataFrame> {
 
     cols.push(expr_fn::to_timestamp_millis(expr_fn::col("timestamp")).alias("timestamp"));
     Ok(df.select(cols)?)
+}
+
+fn gather_columns(df: &DataFrame) -> Vec<Column> {
+    let schema = df.schema();
+    schema
+        .fields()
+        .iter()
+        .map(|field| Column {
+            name: field.name().to_string(),
+            data_type: field.data_type().into(),
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -201,6 +241,7 @@ mod tests {
         assert!(partition.size > 0);
         assert_eq!(partition.max_ts, 1698000995523);
         assert_eq!(partition.min_ts, 1698000992225);
+        assert_eq!(partition.columns.len(), 10);
         query_memstore
             .head(&Path::from(target_path))
             .await

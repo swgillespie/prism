@@ -23,6 +23,7 @@ enum ColumnType {
   COLUMN_TYPE_UNSPECIFIED = 0;
   COLUMN_TYPE_INT64 = 1;
   COLUMN_TYPE_UTF8 = 2;
+  COLUMN_TYPE_TIMESTAMP = 3;
 }
 
 message GetTablePartitionsRequest {
@@ -45,10 +46,23 @@ message GetTablePartitionsResponse {
 message Partition {
   string name = 1;
   int64 size = 2;
+  TimeRange time_range = 3;
+}
+
+message RecordNewPartitionRequest {
+  string tenant_id = 1;
+  string table_name = 2;
+  Partition partition = 3;
+  repeated TableColumn columns = 4;
+}
+
+message RecordNewPartitionResponse {
 }
 
 service MetaService {
   rpc GetTableSchema(GetTableSchemaRequest) returns (GetTableSchemaResponse) {}
 
   rpc GetTablePartitions(GetTablePartitionsRequest) returns (GetTablePartitionsResponse) {}
+
+  rpc RecordNewPartition(RecordNewPartitionRequest) returns (RecordNewPartitionResponse) {}
 }
