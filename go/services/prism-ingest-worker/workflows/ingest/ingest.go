@@ -57,6 +57,7 @@ const (
 )
 
 func (w *workflows) Ingest(ctx workflow.Context, input IngestInput) error {
+	ctx = workflow.WithActivityOptions(ctx, getActivityOptions())
 	var partition Partition
 	err := workflow.ExecuteActivity(ctx, (*activities).IngestTransformToParquet, IngestTransformToParquetInput{
 		TenantID:    input.TenantID,
@@ -78,7 +79,7 @@ func (w *workflows) Ingest(ctx workflow.Context, input IngestInput) error {
 }
 
 func (a *activities) IngestTransformToParquet(ctx context.Context, input IngestTransformToParquetInput) (Partition, error) {
-	cmd := exec.CommandContext(ctx, "prism-ingest",
+	cmd := exec.CommandContext(ctx, a.ingestConfig.IngestBinaryPath,
 		"--source", input.Source,
 		"--location", input.Location,
 		"--destination", input.Destination,
@@ -163,5 +164,13 @@ func ingestorTypeToProto(ingestorType string) proto.ColumnType {
 		return proto.ColumnType_COLUMN_TYPE_TIMESTAMP
 	default:
 		return proto.ColumnType_COLUMN_TYPE_UNSPECIFIED
+	}
+}
+
+func getActivityOptions() workflow.ActivityOptions {
+	return workflow.ActivityOptions{
+		ScheduleToStartTimeout: 1 * time.Minute,
+		StartToCloseTimeout:    1 * time.Minute,
+		HeartbeatTimeout:       30 * time.Second,
 	}
 }

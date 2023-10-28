@@ -10,11 +10,13 @@ type (
 	Provider interface {
 		GetMeta() *Meta
 		GetTemporal() *Temporal
+		GetIngest() *Ingest
 	}
 
 	yamlProvider struct {
 		Meta     *Meta     `yaml:"meta"`
 		Temporal *Temporal `yaml:"temporal"`
+		Ingest   *Ingest   `yaml:"ingest"`
 	}
 )
 
@@ -24,6 +26,10 @@ func (y *yamlProvider) GetMeta() *Meta {
 
 func (y *yamlProvider) GetTemporal() *Temporal {
 	return y.Temporal
+}
+
+func (y *yamlProvider) GetIngest() *Ingest {
+	return y.Ingest
 }
 
 func NewYAMLProvider(filepath string) (Provider, error) {

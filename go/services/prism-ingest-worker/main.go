@@ -11,6 +11,8 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 
+	"code.prism.io/go/proto"
+	"code.prism.io/go/services/prism-ingest-worker/clients/meta"
 	"code.prism.io/go/services/prism-ingest-worker/config"
 	"code.prism.io/go/services/prism-ingest-worker/workflows/ingest"
 )
@@ -26,6 +28,7 @@ var (
 				fx.Provide(func() (config.Provider, error) { return config.NewYAMLProvider(configFile) }),
 				fx.Provide(zap.NewProduction),
 				fx.Provide(newWorker),
+				fx.Provide(newMetaClientProvider),
 				config.Module,
 				ingest.Module,
 				fx.Invoke(func(w worker.Worker) {}),
@@ -36,6 +39,12 @@ var (
 
 func init() {
 	rootCmd.Flags().StringVarP(&configFile, "config", "c", "", "configuration file to use")
+}
+
+func newMetaClientProvider(metaConfig *config.Meta) ingest.MetaClientProvider {
+	return func() (proto.MetaServiceClient, error) {
+		return meta.NewClient(metaConfig)
+	}
 }
 
 func newWorker(

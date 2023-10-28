@@ -2,8 +2,10 @@ package ingest
 
 import (
 	"go.temporal.io/sdk/worker"
+	"go.temporal.io/sdk/workflow"
 
 	"code.prism.io/go/proto"
+	"code.prism.io/go/services/prism-ingest-worker/config"
 )
 
 type (
@@ -11,6 +13,7 @@ type (
 	}
 
 	activities struct {
+		ingestConfig       *config.Ingest
 		metaClientProvider MetaClientProvider
 	}
 
@@ -18,14 +21,17 @@ type (
 )
 
 func Register(w worker.Worker, wf *workflows, a *activities) {
+	w.RegisterWorkflowWithOptions(wf.Ingest, workflow.RegisterOptions{Name: "ingest"})
+	w.RegisterActivity(a)
 }
 
 func NewWorkflows() *workflows {
 	return &workflows{}
 }
 
-func NewActivities(metaClientProvider MetaClientProvider) *activities {
+func NewActivities(ingestConfig *config.Ingest, metaClientProvider MetaClientProvider) *activities {
 	return &activities{
+		ingestConfig:       ingestConfig,
 		metaClientProvider: metaClientProvider,
 	}
 }

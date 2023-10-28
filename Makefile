@@ -17,6 +17,8 @@ generate:
 		--go-grpc_out=. \
 		./src/prism-proto/proto/*.proto
 
+run: ## Runs all services locally.
+	OVERMIND_CAN_DIE=ingest-build overmind start
 
 ## Help:
 help: ## Show this help.

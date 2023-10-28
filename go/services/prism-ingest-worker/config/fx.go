@@ -9,4 +9,7 @@ var Module = fx.Options(
 	fx.Provide(func(p Provider) *Temporal {
 		return p.GetTemporal()
 	}),
+	fx.Provide(func(p Provider) *Ingest {
+		return p.GetIngest()
+	}),
 )

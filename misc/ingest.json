@@ -1,0 +1,7 @@
+{
+    "TenantID": "foo",
+    "Table": "web_requests",
+    "Source": "./.scratch/in",
+    "Destination": "./.scratch/out",
+    "Location": "demo2.json"
+}
