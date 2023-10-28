@@ -14,8 +14,8 @@ COPY --from=golang:1.21.3-bullseye /usr/local/go/ /usr/local/go/
 COPY go ./go
 COPY go.mod .
 COPY go.sum .
-RUN /usr/local/go/bin/go build -o prism-infra-worker ./go/services/prism-infra-worker
+RUN /usr/local/go/bin/go build -o prism-ingest-worker ./go/services/prism-ingest-worker
 
-CMD ["prism-infra-worker", "--config", "/etc/prism/config.yaml"]
+CMD ["prism-ingest-worker", "--config", "/etc/prism/config.yaml"]
 
 

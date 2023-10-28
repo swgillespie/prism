@@ -2,18 +2,18 @@ import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 import * as awsx from "@pulumi/awsx";
 
-export interface MetaServiceArgs {
+export interface IngestWorkerServiceArgs {
   provider: k8s.Provider;
   namespace: k8s.core.v1.Namespace;
 }
 
-export class MetaService extends pulumi.ComponentResource {
+export class IngestWorkerService extends pulumi.ComponentResource {
   constructor(
     name: string,
-    args: MetaServiceArgs,
+    args: IngestWorkerServiceArgs,
     opts?: pulumi.ComponentResourceOptions
   ) {
-    super("prism:meta:MetaService", name, {}, opts);
+    super("prism:meta:IngestWorkerService", name, args, opts);
     const childOpts: pulumi.ComponentResourceOptions = {
       ...opts,
       parent: this,
@@ -32,33 +32,39 @@ export class MetaService extends pulumi.ComponentResource {
       {
         repositoryUrl: ecr.repository.repositoryUrl,
         path: "../..",
-        dockerfile: "../../go/services/prism-meta/Dockerfile",
+        dockerfile: "../../go/services/prism-ingest-worker/Dockerfile",
       },
       childOpts
     );
 
-    const config = new pulumi.Config("cockroachdb");
-    const secret = new k8s.core.v1.Secret(
-      `${name}-secret`,
+    const configMap = new k8s.core.v1.ConfigMap(
+      `${name}-configmap`,
       {
         metadata: {
           namespace: args.namespace.metadata.name,
-          name: "cockroachdb",
         },
-        stringData: {
-          password: config.requireSecret("password"),
+        data: {
+          "config.yaml": JSON.stringify({
+            meta: {
+              endpoint: "meta.prism.svc.cluster.local.:8080",
+            },
+            temporal: {
+              endpoint: "temporal.temporal.svc.cluster.local.:7233",
+              task_queue: "prism-ingest-worker",
+            },
+          }),
         },
       },
       childOpts
     );
 
-    const labels = { app: "prism-meta" };
+    const labels = { app: "prism-ingest-worker" };
     const deployment = new k8s.apps.v1.Deployment(
       `${name}-deployment`,
       {
         metadata: {
           namespace: args.namespace.metadata.name,
-          name: "meta",
+          name: "ingest-worker",
           labels: labels,
         },
         spec: {
@@ -74,46 +80,37 @@ export class MetaService extends pulumi.ComponentResource {
               containers: [
                 {
                   image: image.imageUri,
-                  name: "prism-meta",
-                  env: [
-                    {
-                      name: "COCKROACHDB_USER",
-                      value: config.require("user"),
-                    },
-                    {
-                      name: "COCKROACHDB_PASSWORD",
-                      valueFrom: {
-                        secretKeyRef: {
-                          name: secret.metadata.name,
-                          key: "password",
-                        },
-                      },
-                    },
-                    {
-                      name: "COCKROACHDB_URL",
-                      value: config.require("url"),
-                    },
-                    {
-                      name: "COCKROACHDB_DATABASE",
-                      value: config.require("database"),
-                    },
-                  ],
+                  name: "prism-ingest-worker",
                   resources: {
                     requests: {
                       cpu: "100m",
-                      memory: "128Mi",
+                      memory: "256Mi",
                     },
                     limits: {
-                      cpu: "500m",
-                      memory: "256Mi",
+                      cpu: "100m",
+                      memory: "512Mi",
                     },
                   },
                   ports: [
                     {
-                      name: "http",
-                      containerPort: 8080,
+                      name: "metrics",
+                      containerPort: 9090,
                     },
                   ],
+                  volumeMounts: [
+                    {
+                      name: "config",
+                      mountPath: "/etc/prism",
+                    },
+                  ],
+                },
+              ],
+              volumes: [
+                {
+                  name: "config",
+                  configMap: {
+                    name: configMap.metadata.name,
+                  },
                 },
               ],
             },
@@ -128,17 +125,17 @@ export class MetaService extends pulumi.ComponentResource {
       {
         metadata: {
           namespace: args.namespace.metadata.name,
-          name: "meta",
+          name: "ingest-worker",
           labels: labels,
         },
         spec: {
           selector: labels,
-          clusterIP: "None",
+          type: "ClusterIP",
           ports: [
             {
-              name: "http",
-              port: 8080,
-              targetPort: 8080,
+              name: "metrics",
+              port: 9090,
+              targetPort: 9090,
             },
           ],
         },
@@ -146,8 +143,6 @@ export class MetaService extends pulumi.ComponentResource {
       childOpts
     );
 
-    this.registerOutputs({
-      service,
-    });
+    this.registerOutputs({ deployment, service });
   }
 }
