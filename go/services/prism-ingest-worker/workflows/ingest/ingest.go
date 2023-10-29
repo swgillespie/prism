@@ -11,7 +11,7 @@ import (
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/workflow"
 
-	metav1 "code.prism.io/proto/gen/go/prism/meta/v1"
+	metav1 "code.prism.io/proto/rpc/gen/go/prism/meta/v1"
 )
 
 type (
@@ -130,9 +130,9 @@ func (a *activities) IngestRecordNewPartition(ctx context.Context, input IngestR
 		return err
 	}
 
-	var columns []*metav1.TableColumn
+	var columns []*metav1.Column
 	for _, column := range input.Partition.Columns {
-		columns = append(columns, &metav1.TableColumn{
+		columns = append(columns, &metav1.Column{
 			Name: column.Name,
 			Type: ingestorTypeToProto(column.DataType),
 		})

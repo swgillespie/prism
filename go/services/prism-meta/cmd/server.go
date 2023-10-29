@@ -19,7 +19,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
-	metav1 "code.prism.io/proto/gen/go/prism/meta/v1"
+	metav1 "code.prism.io/proto/rpc/gen/go/prism/meta/v1"
 )
 
 var (
@@ -78,7 +78,7 @@ func (s *server) GetTableSchema(ctx context.Context, req *metav1.GetTableSchemaR
 	}
 
 	defer rows.Close()
-	var columns []*metav1.TableColumn
+	var columns []*metav1.Column
 	for rows.Next() {
 		var name string
 		var ty int32
@@ -86,7 +86,7 @@ func (s *server) GetTableSchema(ctx context.Context, req *metav1.GetTableSchemaR
 			return nil, status.New(codes.Internal, err.Error()).Err()
 		}
 
-		columns = append(columns, &metav1.TableColumn{
+		columns = append(columns, &metav1.Column{
 			Name: name,
 			Type: metav1.ColumnType(ty),
 		})

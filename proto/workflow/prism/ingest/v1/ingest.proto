@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package prism.ingest.v1;
+
+import "google/protobuf/empty.proto";
+import "temporal/v1/temporal.proto";
+
+message IngestObjectRequest {
+  string tenant_id = 1;
+  string table = 2;
+  string source = 3;
+  string destination = 4;
+  string location = 5;
+}
+
+message TransformToParquetRequest {
+  string tenant_id = 1;
+  string table = 2;
+  string source = 3;
+  string destination = 4;
+  string location = 5;
+}
+
+message TransformToParquetResponse {
+  Partition partition = 1;
+}
+
+message Partition {
+  string name = 1;
+  uint64 size = 2;
+  int64 max_timestamp = 3;
+  int64 min_timestamp = 4;
+  repeated Column columns = 5;
+}
+
+message Column {
+  string name = 1;
+  ColumnType type = 2;
+}
+
+enum ColumnType {
+  COLUMN_TYPE_UNSPECIFIED = 0;
+  COLUMN_TYPE_INT64 = 1;
+  COLUMN_TYPE_UTF8 = 2;
+  COLUMN_TYPE_TIMESTAMP = 3;
+}
+
+message RecordNewPartitionRequest {
+  string tenant_id = 1;
+  string table = 2;
+  Partition partition = 3;
+}
+
+service Ingest {
+  option (temporal.v1.service) = {
+    task_queue: "prism-ingest"
+  };
+
+  rpc IngestObject(IngestObjectRequest) returns (google.protobuf.Empty) {
+    option (temporal.v1.workflow) = {
+      execution_timeout: { seconds: 360 }
+      id_reuse_policy: WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
+      id: 'ingest/${!tenant_id.slug()}/${!table.slug()}/${!location.slug()}'
+    };
+  }
+
+  rpc TransformToParquet(TransformToParquetRequest) returns (TransformToParquetResponse) {
+    option (temporal.v1.activity) = {
+      start_to_close_timeout: { seconds: 360 }
+    };
+  }
+
+  rpc RecordNewPartition(RecordNewPartitionRequest) returns (google.protobuf.Empty) {
+    option (temporal.v1.activity) = {
+      start_to_close_timeout: { seconds: 30 }
+    };
+  }
+}

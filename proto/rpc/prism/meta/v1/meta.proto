@@ -2,17 +2,18 @@ syntax = "proto3";
 
 package prism.meta.v1;
 
-message GetTableSchemaRequest {
-  string tenant_id = 1;
-  string table_name = 2;
+message Partition {
+  string name = 1;
+  int64 size = 2;
+  TimeRange time_range = 3;
 }
 
-message GetTableSchemaResponse {
-  string table_name = 1;
-  repeated TableColumn columns = 2;
+message TimeRange {
+  int64 start_time = 1;
+  int64 end_time = 2;
 }
 
-message TableColumn {
+message Column {
   string name = 1;
   ColumnType type = 2;
 }
@@ -24,15 +25,20 @@ enum ColumnType {
   COLUMN_TYPE_TIMESTAMP = 3;
 }
 
+message GetTableSchemaRequest {
+  string tenant_id = 1;
+  string table_name = 2;
+}
+
+message GetTableSchemaResponse {
+  string table_name = 1;
+  repeated Column columns = 2;
+}
+
 message GetTablePartitionsRequest {
   string tenant_id = 1;
   string table_name = 2;
   TimeRange time_range = 3;
-}
-
-message TimeRange {
-  int64 start_time = 1;
-  int64 end_time = 2;
 }
 
 message GetTablePartitionsResponse {
@@ -41,17 +47,11 @@ message GetTablePartitionsResponse {
   repeated Partition partitions = 3;
 }
 
-message Partition {
-  string name = 1;
-  int64 size = 2;
-  TimeRange time_range = 3;
-}
-
 message RecordNewPartitionRequest {
   string tenant_id = 1;
   string table_name = 2;
   Partition partition = 3;
-  repeated TableColumn columns = 4;
+  repeated Column columns = 4;
 }
 
 message RecordNewPartitionResponse {

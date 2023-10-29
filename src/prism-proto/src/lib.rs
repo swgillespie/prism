@@ -1,1 +1,1 @@
-include!("../../../proto/gen/rust/prism.meta.v1.rs");
+include!("../../../proto/rpc/gen/rust/prism.meta.v1.rs");

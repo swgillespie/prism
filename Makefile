@@ -11,7 +11,7 @@ install-dependencies: ## Installs all compile-time dependencies.
 	go install -tags 'cockroachdb' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.16.2
 	go install github.com/golang/mock/mockgen@v1.6.0
 	go install github.com/bufbuild/buf/cmd/buf@v1.27.2
-
+	go install github.com/cludden/protoc-gen-go-temporal/cmd/protoc-gen-go_temporal@v1.0.2
 generate:
 	protoc --go_out=.   \
 		--go-grpc_out=. \

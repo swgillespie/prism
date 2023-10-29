@@ -2,7 +2,7 @@ version: v1
 managed:
   enabled: true
   go_package_prefix:
-    default: code.prism.io/proto/gen/go
+    default: code.prism.io/proto/rpc/gen/go
 plugins:
   - plugin: buf.build/grpc/go:v1.3.0
     out: gen/go

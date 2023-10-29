@@ -14,7 +14,7 @@ import (
 	"code.prism.io/go/services/prism-ingest-worker/clients/meta"
 	"code.prism.io/go/services/prism-ingest-worker/config"
 	"code.prism.io/go/services/prism-ingest-worker/workflows/ingest"
-	metav1 "code.prism.io/proto/gen/go/prism/meta/v1"
+	metav1 "code.prism.io/proto/rpc/gen/go/prism/meta/v1"
 )
 
 var (

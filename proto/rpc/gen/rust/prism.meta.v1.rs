@@ -1,35 +1,11 @@
 // @generated
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GetTableSchemaRequest {
-    #[prost(string, tag="1")]
-    pub tenant_id: ::prost::alloc::string::String,
-    #[prost(string, tag="2")]
-    pub table_name: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GetTableSchemaResponse {
-    #[prost(string, tag="1")]
-    pub table_name: ::prost::alloc::string::String,
-    #[prost(message, repeated, tag="2")]
-    pub columns: ::prost::alloc::vec::Vec<TableColumn>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct TableColumn {
+pub struct Partition {
     #[prost(string, tag="1")]
     pub name: ::prost::alloc::string::String,
-    #[prost(enumeration="ColumnType", tag="2")]
-    pub r#type: i32,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GetTablePartitionsRequest {
-    #[prost(string, tag="1")]
-    pub tenant_id: ::prost::alloc::string::String,
-    #[prost(string, tag="2")]
-    pub table_name: ::prost::alloc::string::String,
+    #[prost(int64, tag="2")]
+    pub size: i64,
     #[prost(message, optional, tag="3")]
     pub time_range: ::core::option::Option<TimeRange>,
 }
@@ -43,6 +19,40 @@ pub struct TimeRange {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Column {
+    #[prost(string, tag="1")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(enumeration="ColumnType", tag="2")]
+    pub r#type: i32,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetTableSchemaRequest {
+    #[prost(string, tag="1")]
+    pub tenant_id: ::prost::alloc::string::String,
+    #[prost(string, tag="2")]
+    pub table_name: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetTableSchemaResponse {
+    #[prost(string, tag="1")]
+    pub table_name: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag="2")]
+    pub columns: ::prost::alloc::vec::Vec<Column>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetTablePartitionsRequest {
+    #[prost(string, tag="1")]
+    pub tenant_id: ::prost::alloc::string::String,
+    #[prost(string, tag="2")]
+    pub table_name: ::prost::alloc::string::String,
+    #[prost(message, optional, tag="3")]
+    pub time_range: ::core::option::Option<TimeRange>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetTablePartitionsResponse {
     #[prost(string, tag="1")]
     pub tenant_id: ::prost::alloc::string::String,
@@ -50,16 +60,6 @@ pub struct GetTablePartitionsResponse {
     pub table_name: ::prost::alloc::string::String,
     #[prost(message, repeated, tag="3")]
     pub partitions: ::prost::alloc::vec::Vec<Partition>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Partition {
-    #[prost(string, tag="1")]
-    pub name: ::prost::alloc::string::String,
-    #[prost(int64, tag="2")]
-    pub size: i64,
-    #[prost(message, optional, tag="3")]
-    pub time_range: ::core::option::Option<TimeRange>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -71,7 +71,7 @@ pub struct RecordNewPartitionRequest {
     #[prost(message, optional, tag="3")]
     pub partition: ::core::option::Option<Partition>,
     #[prost(message, repeated, tag="4")]
-    pub columns: ::prost::alloc::vec::Vec<TableColumn>,
+    pub columns: ::prost::alloc::vec::Vec<Column>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

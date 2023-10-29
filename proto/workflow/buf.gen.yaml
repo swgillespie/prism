@@ -1,0 +1,15 @@
+version: v1
+managed:
+  enabled: true
+  go_package_prefix:
+    default: code.temporal.io/proto/workflow/gen/go
+    except:
+      - buf.build/cludden/protoc-gen-go-temporal
+plugins:
+  - plugin: go
+    out: gen
+    opt: paths=source_relative
+  - plugin: go_temporal
+    out: gen
+    opt: paths=source_relative,cli-enabled=true,cli-categories=true,workflow-update-enabled=true
+    strategy: all

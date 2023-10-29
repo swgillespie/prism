@@ -5,7 +5,7 @@ import (
 	"go.temporal.io/sdk/workflow"
 
 	"code.prism.io/go/services/prism-ingest-worker/config"
-	metav1 "code.prism.io/proto/gen/go/prism/meta/v1"
+	metav1 "code.prism.io/proto/rpc/gen/go/prism/meta/v1"
 )
 
 type (
