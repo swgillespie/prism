@@ -12,6 +12,7 @@ import (
 	"go.temporal.io/sdk/workflow"
 
 	"code.prism.io/go/services/prism-ingest-worker/config"
+	commonv1 "code.prism.io/proto/common/gen/go/prism/common/v1"
 	metav1 "code.prism.io/proto/rpc/gen/go/prism/meta/v1"
 	ingestv1 "code.prism.io/proto/workflow/gen/prism/ingest/v1"
 )
@@ -69,21 +70,21 @@ func (a *Activities) RecordNewPartition(ctx context.Context, input *ingestv1.Rec
 		return err
 	}
 
-	var columns []*metav1.Column
+	var columns []*commonv1.Column
 	for _, column := range input.Partition.Columns {
-		columns = append(columns, &metav1.Column{
+		columns = append(columns, &commonv1.Column{
 			Name: column.Name,
-			Type: metav1.ColumnType(column.Type),
+			Type: commonv1.ColumnType(column.Type),
 		})
 	}
 
 	_, err = client.RecordNewPartition(ctx, &metav1.RecordNewPartitionRequest{
 		TenantId:  input.TenantId,
 		TableName: input.Table,
-		Partition: &metav1.Partition{
+		Partition: &commonv1.Partition{
 			Name: input.Partition.Name,
 			Size: int64(input.Partition.Size),
-			TimeRange: &metav1.TimeRange{
+			TimeRange: &commonv1.TimeRange{
 				StartTime: input.Partition.MinTimestamp,
 				EndTime:   input.Partition.MaxTimestamp,
 			},

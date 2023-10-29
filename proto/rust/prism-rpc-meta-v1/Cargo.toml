@@ -1,10 +1,9 @@
 [package]
-name = "prism-proto"
+name = "prism-rpc-meta-v1"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 prost = "0.12.1"
 tonic = "0.10.2"
-
-prism-rpc-meta-v1 = { path = "../../proto/rust/prism-rpc-meta-v1" }
+prism-common-v1 = { path = "../prism-common-v1" }

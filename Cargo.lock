@@ -2011,6 +2011,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
 
 [[package]]
+name = "prism-common-v1"
+version = "0.1.0"
+dependencies = [
+ "prost",
+]
+
+[[package]]
 name = "prism-ingest"
 version = "0.1.0"
 dependencies = [
@@ -2034,6 +2041,7 @@ dependencies = [
 name = "prism-proto"
 version = "0.1.0"
 dependencies = [
+ "prism-rpc-meta-v1",
  "prost",
  "tonic",
 ]
@@ -2054,6 +2062,15 @@ dependencies = [
  "tokio",
  "tonic",
  "url",
+]
+
+[[package]]
+name = "prism-rpc-meta-v1"
+version = "0.1.0"
+dependencies = [
+ "prism-common-v1",
+ "prost",
+ "tonic",
 ]
 
 [[package]]

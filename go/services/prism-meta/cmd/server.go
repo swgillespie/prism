@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
+	commonv1 "code.prism.io/proto/common/gen/go/prism/common/v1"
 	metav1 "code.prism.io/proto/rpc/gen/go/prism/meta/v1"
 )
 
@@ -78,7 +79,7 @@ func (s *server) GetTableSchema(ctx context.Context, req *metav1.GetTableSchemaR
 	}
 
 	defer rows.Close()
-	var columns []*metav1.Column
+	var columns []*commonv1.Column
 	for rows.Next() {
 		var name string
 		var ty int32
@@ -86,9 +87,9 @@ func (s *server) GetTableSchema(ctx context.Context, req *metav1.GetTableSchemaR
 			return nil, status.New(codes.Internal, err.Error()).Err()
 		}
 
-		columns = append(columns, &metav1.Column{
+		columns = append(columns, &commonv1.Column{
 			Name: name,
-			Type: metav1.ColumnType(ty),
+			Type: commonv1.ColumnType(ty),
 		})
 	}
 
@@ -133,7 +134,7 @@ func (s *server) GetTablePartitions(ctx context.Context, req *metav1.GetTablePar
 		}
 	}
 
-	var partitions []*metav1.Partition
+	var partitions []*commonv1.Partition
 	for rows.Next() {
 		var name string
 		var size int64
@@ -141,7 +142,7 @@ func (s *server) GetTablePartitions(ctx context.Context, req *metav1.GetTablePar
 			return nil, status.New(codes.Internal, err.Error()).Err()
 		}
 
-		partitions = append(partitions, &metav1.Partition{
+		partitions = append(partitions, &commonv1.Partition{
 			Name: name,
 			Size: size,
 		})

@@ -11,6 +11,7 @@ import (
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/workflow"
 
+	commonv1 "code.prism.io/proto/common/gen/go/prism/common/v1"
 	metav1 "code.prism.io/proto/rpc/gen/go/prism/meta/v1"
 )
 
@@ -130,9 +131,9 @@ func (a *activities) IngestRecordNewPartition(ctx context.Context, input IngestR
 		return err
 	}
 
-	var columns []*metav1.Column
+	var columns []*commonv1.Column
 	for _, column := range input.Partition.Columns {
-		columns = append(columns, &metav1.Column{
+		columns = append(columns, &commonv1.Column{
 			Name: column.Name,
 			Type: ingestorTypeToProto(column.DataType),
 		})
@@ -141,10 +142,10 @@ func (a *activities) IngestRecordNewPartition(ctx context.Context, input IngestR
 	_, err = client.RecordNewPartition(ctx, &metav1.RecordNewPartitionRequest{
 		TenantId:  input.TenantID,
 		TableName: input.Table,
-		Partition: &metav1.Partition{
+		Partition: &commonv1.Partition{
 			Name: input.Partition.Name,
 			Size: int64(input.Partition.Size),
-			TimeRange: &metav1.TimeRange{
+			TimeRange: &commonv1.TimeRange{
 				StartTime: input.Partition.MinTS,
 				EndTime:   input.Partition.MaxTS,
 			},
@@ -154,16 +155,16 @@ func (a *activities) IngestRecordNewPartition(ctx context.Context, input IngestR
 	return err
 }
 
-func ingestorTypeToProto(ingestorType string) metav1.ColumnType {
+func ingestorTypeToProto(ingestorType string) commonv1.ColumnType {
 	switch ingestorType {
 	case "Int64":
-		return metav1.ColumnType_COLUMN_TYPE_INT64
+		return commonv1.ColumnType_COLUMN_TYPE_INT64
 	case "String":
-		return metav1.ColumnType_COLUMN_TYPE_UTF8
+		return commonv1.ColumnType_COLUMN_TYPE_UTF8
 	case "Timestamp":
-		return metav1.ColumnType_COLUMN_TYPE_TIMESTAMP
+		return commonv1.ColumnType_COLUMN_TYPE_TIMESTAMP
 	default:
-		return metav1.ColumnType_COLUMN_TYPE_UNSPECIFIED
+		return commonv1.ColumnType_COLUMN_TYPE_UNSPECIFIED
 	}
 }
 

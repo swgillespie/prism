@@ -3,6 +3,8 @@ managed:
   enabled: true
   go_package_prefix:
     default: code.prism.io/proto/rpc/gen/go
+    override:
+      buf.build/prism/common: code.prism.io/proto/common/gen/go
 plugins:
   - plugin: buf.build/grpc/go:v1.3.0
     out: gen/go
@@ -12,5 +14,7 @@ plugins:
     opt: paths=source_relative
   - plugin: buf.build/community/neoeinstein-prost:v0.2.3
     out: gen/rust
+    opt:
+      - extern_path=.prism.common.v1=prism_common_v1
   - plugin: buf.build/community/neoeinstein-tonic:v0.3.0
     out: gen/rust

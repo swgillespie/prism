@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package prism.common.v1;
+
+message Partition {
+  string name = 1;
+  int64 size = 2;
+  TimeRange time_range = 3;
+}
+
+message TimeRange {
+  int64 start_time = 1;
+  int64 end_time = 2;
+}
+
+message Column {
+  string name = 1;
+  ColumnType type = 2;
+}
+
+enum ColumnType {
+  COLUMN_TYPE_UNSPECIFIED = 0;
+  COLUMN_TYPE_INT64 = 1;
+  COLUMN_TYPE_UTF8 = 2;
+  COLUMN_TYPE_TIMESTAMP = 3;
+}

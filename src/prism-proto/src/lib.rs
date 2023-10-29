@@ -1,1 +1,1 @@
-include!("../../../proto/rpc/gen/rust/prism.meta.v1.rs");
+pub use prism_rpc_meta_v1::*;

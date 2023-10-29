@@ -2,28 +2,7 @@ syntax = "proto3";
 
 package prism.meta.v1;
 
-message Partition {
-  string name = 1;
-  int64 size = 2;
-  TimeRange time_range = 3;
-}
-
-message TimeRange {
-  int64 start_time = 1;
-  int64 end_time = 2;
-}
-
-message Column {
-  string name = 1;
-  ColumnType type = 2;
-}
-
-enum ColumnType {
-  COLUMN_TYPE_UNSPECIFIED = 0;
-  COLUMN_TYPE_INT64 = 1;
-  COLUMN_TYPE_UTF8 = 2;
-  COLUMN_TYPE_TIMESTAMP = 3;
-}
+import "prism/common/v1/partition.proto";
 
 message GetTableSchemaRequest {
   string tenant_id = 1;
@@ -32,26 +11,26 @@ message GetTableSchemaRequest {
 
 message GetTableSchemaResponse {
   string table_name = 1;
-  repeated Column columns = 2;
+  repeated prism.common.v1.Column columns = 2;
 }
 
 message GetTablePartitionsRequest {
   string tenant_id = 1;
   string table_name = 2;
-  TimeRange time_range = 3;
+  prism.common.v1.TimeRange time_range = 3;
 }
 
 message GetTablePartitionsResponse {
   string tenant_id = 1;
   string table_name = 2;
-  repeated Partition partitions = 3;
+  repeated prism.common.v1.Partition partitions = 3;
 }
 
 message RecordNewPartitionRequest {
   string tenant_id = 1;
   string table_name = 2;
-  Partition partition = 3;
-  repeated Column columns = 4;
+  prism.common.v1.Partition partition = 3;
+  repeated prism.common.v1.Column columns = 4;
 }
 
 message RecordNewPartitionResponse {

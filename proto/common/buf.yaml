@@ -1,6 +1,5 @@
 version: v1
-deps:
-  - buf.build/prism/common
+name: buf.build/prism/common
 breaking:
   use:
     - FILE
