@@ -23,7 +23,7 @@ use object_store::{path::Path, ObjectMeta};
 use tokio::sync::Mutex;
 use tonic::{transport::Channel, Request};
 
-use prism_proto::{
+use prism_rpc_meta_v1::{
     meta_service_client::MetaServiceClient, GetTablePartitionsRequest, GetTableSchemaRequest,
 };
 

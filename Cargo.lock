@@ -2028,22 +2028,12 @@ dependencies = [
  "envconfig",
  "futures",
  "object_store",
- "prism-proto",
  "serde",
  "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",
  "url",
-]
-
-[[package]]
-name = "prism-proto"
-version = "0.1.0"
-dependencies = [
- "prism-rpc-meta-v1",
- "prost",
- "tonic",
 ]
 
 [[package]]
@@ -2058,7 +2048,7 @@ dependencies = [
  "envconfig",
  "futures",
  "object_store",
- "prism-proto",
+ "prism-rpc-meta-v1",
  "tokio",
  "tonic",
  "url",

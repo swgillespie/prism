@@ -8,7 +8,7 @@ use clap::Parser;
 use datafusion::prelude::SessionContext;
 use envconfig::Envconfig;
 use object_store::aws::AmazonS3Builder;
-use prism_proto::meta_service_client::MetaServiceClient;
+use prism_rpc_meta_v1::meta_service_client::MetaServiceClient;
 use providers::PrismCatalogProvider;
 use tokio::sync::Mutex;
 use url::Url;
