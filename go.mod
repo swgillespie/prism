@@ -12,6 +12,7 @@ require (
 	github.com/urfave/cli/v2 v2.25.7
 	go.temporal.io/api v1.24.0
 	go.temporal.io/sdk v1.25.1
+	go.temporal.io/server v1.22.0
 	go.uber.org/fx v1.20.1
 	go.uber.org/zap v1.24.0
 	google.golang.org/grpc v1.59.0
@@ -77,7 +78,7 @@ require (
 	github.com/klauspost/compress v1.16.3 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/kr/fs v0.1.0 // indirect
-	github.com/lib/pq v1.10.6 // indirect
+	github.com/lib/pq v1.10.9 // indirect
 	github.com/matoous/go-nanoid/v2 v2.0.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect

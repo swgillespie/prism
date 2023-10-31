@@ -13,78 +13,80 @@ import (
 
 	commonv1 "code.prism.io/proto/common/gen/go/prism/common/v1"
 	metav1 "code.prism.io/proto/rpc/gen/go/prism/meta/v1"
+	ingestv1 "code.prism.io/proto/workflow/gen/prism/ingest/v1"
 )
 
 type (
-	IngestInput struct {
-		TenantID    string
-		Table       string
-		Source      string
-		Destination string
-		Location    string
+	IngestObjectWorkflow struct {
+		input *ingestv1.IngestObjectInput
 	}
+)
 
-	IngestTransformToParquetInput struct {
-		TenantID    string
-		Table       string
-		Source      string
-		Destination string
-		Location    string
-	}
-
-	IngestRecordNewPartitionInput struct {
-		TenantID  string
-		Table     string
-		Partition Partition
-	}
-
-	// Keep synchronized with prism-ingest/src/ingest.rs!
-	Partition struct {
-		Name    string `json:"name"`
-		Size    uint64 `json:"size"`
-		MaxTS   int64  `json:"max_ts"`
-		MinTS   int64  `json:"min_ts"`
-		Columns []Column
-	}
-
-	Column struct {
-		Name     string `json:"name"`
-		DataType string `json:"data_type"`
-	}
+var (
+	_ ingestv1.IngestObjectWorkflow = (*IngestObjectWorkflow)(nil)
+	_ ingestv1.IngestActivities     = (*Activities)(nil)
 )
 
 const (
 	heartbeatInterval = 5 * time.Second
 )
 
-func (w *workflows) Ingest(ctx workflow.Context, input IngestInput) error {
-	ctx = workflow.WithActivityOptions(ctx, getActivityOptions())
-	var partition Partition
-	err := workflow.ExecuteActivity(ctx, (*activities).IngestTransformToParquet, IngestTransformToParquetInput{
-		TenantID:    input.TenantID,
-		Table:       input.Table,
-		Source:      input.Source,
-		Destination: input.Destination,
-		Location:    input.Location,
-	}).Get(ctx, &partition)
+func (wf *IngestObjectWorkflow) Execute(ctx workflow.Context) error {
+	transformResp, err := ingestv1.TransformToParquet(ctx, &ingestv1.TransformToParquetRequest{
+		TenantId:    wf.input.Req.TenantId,
+		Table:       wf.input.Req.Table,
+		Source:      wf.input.Req.Source,
+		Destination: wf.input.Req.Destination,
+		Location:    wf.input.Req.Location,
+	})
 	if err != nil {
 		return err
 	}
 
-	err = workflow.ExecuteActivity(ctx, (*activities).IngestRecordNewPartition, IngestRecordNewPartitionInput{
-		TenantID:  "test",
-		Table:     "web_requests",
-		Partition: partition,
-	}).Get(ctx, nil)
-	return err
+	return ingestv1.RecordNewPartition(ctx, &ingestv1.RecordNewPartitionRequest{
+		TenantId:  wf.input.Req.TenantId,
+		Table:     wf.input.Req.Table,
+		Partition: transformResp.Partition,
+	})
 }
 
-func (a *activities) IngestTransformToParquet(ctx context.Context, input IngestTransformToParquetInput) (Partition, error) {
+func (a *Activities) RecordNewPartition(ctx context.Context, input *ingestv1.RecordNewPartitionRequest) error {
+	client, err := a.metaClientProvider()
+	if err != nil {
+		return err
+	}
+
+	var columns []*commonv1.Column
+	for _, column := range input.Partition.Columns {
+		columns = append(columns, &commonv1.Column{
+			Name: column.Name,
+			Type: commonv1.ColumnType(column.Type),
+		})
+	}
+
+	_, err = client.RecordNewPartition(ctx, &metav1.RecordNewPartitionRequest{
+		TenantId:  input.TenantId,
+		TableName: input.Table,
+		Partition: &commonv1.Partition{
+			Name: input.Partition.Name,
+			Size: int64(input.Partition.Size),
+			TimeRange: &commonv1.TimeRange{
+				StartTime: input.Partition.MinTimestamp,
+				EndTime:   input.Partition.MaxTimestamp,
+			},
+		},
+		Columns: columns,
+	})
+	return err
+
+}
+
+func (a *Activities) TransformToParquet(ctx context.Context, input *ingestv1.TransformToParquetRequest) (*ingestv1.TransformToParquetResponse, error) {
 	cmd := exec.CommandContext(ctx, a.ingestConfig.IngestBinaryPath,
 		"--source", input.Source,
 		"--location", input.Location,
 		"--destination", input.Destination,
-		"--tenant-id", input.TenantID,
+		"--tenant-id", input.TenantId,
 		"--table", input.Table,
 	)
 
@@ -92,10 +94,10 @@ func (a *activities) IngestTransformToParquet(ctx context.Context, input IngestT
 	cmd.Stdout = &buf
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
-		return Partition{}, err
+		return nil, err
 	}
 
-	var result Partition
+	var result ingestv1.Partition
 	doneChan := make(chan error)
 	go func() {
 		err := cmd.Wait()
@@ -115,63 +117,14 @@ func (a *activities) IngestTransformToParquet(ctx context.Context, input IngestT
 		select {
 		case <-ctx.Done():
 			if err := cmd.Process.Kill(); err != nil {
-				return Partition{}, err
+				return nil, err
 			}
 		case err := <-doneChan:
-			return result, err
+			return &ingestv1.TransformToParquetResponse{
+				Partition: &result,
+			}, err
 		case <-ticker.C:
 			activity.RecordHeartbeat(ctx, nil)
 		}
-	}
-}
-
-func (a *activities) IngestRecordNewPartition(ctx context.Context, input IngestRecordNewPartitionInput) error {
-	client, err := a.metaClientProvider()
-	if err != nil {
-		return err
-	}
-
-	var columns []*commonv1.Column
-	for _, column := range input.Partition.Columns {
-		columns = append(columns, &commonv1.Column{
-			Name: column.Name,
-			Type: ingestorTypeToProto(column.DataType),
-		})
-	}
-
-	_, err = client.RecordNewPartition(ctx, &metav1.RecordNewPartitionRequest{
-		TenantId:  input.TenantID,
-		TableName: input.Table,
-		Partition: &commonv1.Partition{
-			Name: input.Partition.Name,
-			Size: int64(input.Partition.Size),
-			TimeRange: &commonv1.TimeRange{
-				StartTime: input.Partition.MinTS,
-				EndTime:   input.Partition.MaxTS,
-			},
-		},
-		Columns: columns,
-	})
-	return err
-}
-
-func ingestorTypeToProto(ingestorType string) commonv1.ColumnType {
-	switch ingestorType {
-	case "Int64":
-		return commonv1.ColumnType_COLUMN_TYPE_INT64
-	case "String":
-		return commonv1.ColumnType_COLUMN_TYPE_UTF8
-	case "Timestamp":
-		return commonv1.ColumnType_COLUMN_TYPE_TIMESTAMP
-	default:
-		return commonv1.ColumnType_COLUMN_TYPE_UNSPECIFIED
-	}
-}
-
-func getActivityOptions() workflow.ActivityOptions {
-	return workflow.ActivityOptions{
-		ScheduleToStartTimeout: 1 * time.Minute,
-		StartToCloseTimeout:    1 * time.Minute,
-		HeartbeatTimeout:       30 * time.Second,
 	}
 }
