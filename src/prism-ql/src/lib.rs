@@ -1,29 +1,35 @@
-use codespan::{FileId, Files};
-use datafusion::logical_expr::LogicalPlan;
 use std::sync::Arc;
 
-mod ast;
+use codespan::{FileId, Files};
+use codespan_reporting::diagnostic::Diagnostic;
+use datafusion::logical_expr::{LogicalPlan, TableSource};
+use either::Either;
+
+pub mod ast;
 mod diagnostics;
 mod lower;
 mod parser;
 
 pub use lower::QueryContext;
 
-pub struct PlanResult {
-    pub logical_plan: Option<LogicalPlan>,
-    pub diagnostics: Vec<codespan_reporting::diagnostic::Diagnostic<FileId>>,
+use ast::Query;
+
+pub fn parse(input: &str) -> anyhow::Result<Query> {
+    let query = parser::parse(input).map_err(|e| anyhow::anyhow!("parse error: {}", e))?;
+    Ok(query)
 }
 
-pub fn plan(ctx: Arc<dyn QueryContext>, input: &str) -> PlanResult {
+pub fn lower(
+    query: Query,
+    ctx: Arc<dyn QueryContext>,
+    table_source: Arc<dyn TableSource>,
+    input: &str,
+) -> either::Either<LogicalPlan, Vec<Diagnostic<FileId>>> {
     let mut files: Files<String> = Files::new();
-    let file_id = files.add("query", input.to_string());
-    let query = parser::parse(input).unwrap();
-    let mut lowerer = lower::Lowerer::new(ctx, file_id);
-    let result = lowerer.lower(query);
-    // not ok implies there is at least one diagnostic
-    assert!(result.is_ok() || !lowerer.diagnostics().is_empty());
-    PlanResult {
-        logical_plan: result.ok(),
-        diagnostics: lowerer.diagnostics().to_vec(),
+    let fileid = files.add("query", input.to_string());
+    let mut lowerer = lower::Lowerer::new(ctx, table_source, fileid, query.table.name.clone());
+    match lowerer.lower(query) {
+        Ok(plan) => Either::Left(plan),
+        Err(_) => Either::Right(lowerer.diagnostics().to_vec()),
     }
 }

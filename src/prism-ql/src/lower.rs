@@ -10,37 +10,44 @@ use maplit::hashmap;
 use thiserror::Error;
 
 use crate::{
-    ast::{Count, Identifier, Pipeline, Query},
+    ast::{ColumnExpression, Count, Expression, Pipeline, Query},
     diagnostics,
 };
 
 #[derive(Debug, Error)]
 pub enum LowerError {
-    #[error("failed to get table schema")]
-    GetTableSchemaError(anyhow::Error),
     #[error("internal datafusion error")]
     DataFusionError(#[from] datafusion::error::DataFusionError),
+    #[error("query is invalid")]
+    InvalidQuery,
 }
 
 pub type LowerResult<T> = Result<T, LowerError>;
 
 pub trait QueryContext {
     fn get_tenant_id(&self) -> &str;
-
-    fn get_table_source(&self, table: &str) -> anyhow::Result<Arc<dyn TableSource>>;
 }
 
 pub struct Lowerer {
     ctx: Arc<dyn QueryContext>,
     file_id: FileId,
+    table_source: Arc<dyn TableSource>,
     diagnostics: Vec<Diagnostic<FileId>>,
+    table_name: String,
 }
 
 impl Lowerer {
-    pub fn new(ctx: Arc<dyn QueryContext>, file_id: FileId) -> Lowerer {
+    pub fn new(
+        ctx: Arc<dyn QueryContext>,
+        table_source: Arc<dyn TableSource>,
+        file_id: FileId,
+        table_name: String,
+    ) -> Lowerer {
         Lowerer {
             ctx,
             file_id,
+            table_source,
+            table_name,
             diagnostics: vec![],
         }
     }
@@ -50,13 +57,12 @@ impl Lowerer {
     }
 
     pub fn lower(&mut self, query: Query) -> LowerResult<LogicalPlan> {
-        let source = self.get_table_source(&query.table)?;
         let table_ref = TableReference::Full {
             catalog: "prism".into(),
             schema: self.ctx.get_tenant_id().to_string().into(),
             table: query.table.name.into(),
         };
-        let mut plan = LogicalPlanBuilder::scan(table_ref, source, None)?;
+        let mut plan = LogicalPlanBuilder::scan(table_ref, self.table_source.clone(), None)?;
         for pipeline in query.pipelines {
             plan = self.lower_pipeline(plan, pipeline)?;
         }
@@ -77,37 +83,49 @@ impl Lowerer {
     fn lower_count(
         &mut self,
         builder: LogicalPlanBuilder,
-        _: Count,
+        count: Count,
     ) -> LowerResult<LogicalPlanBuilder> {
         let aggr_expr = expr_fn::count(Expr::Wildcard);
-        let group_by: Vec<Expr> = vec![];
+        let group_by: Vec<Expr> = if let Some(by) = count.by {
+            vec![self.lower_expr(by)?]
+        } else {
+            vec![]
+        };
         Ok(builder.aggregate(group_by, vec![aggr_expr])?)
     }
 
-    fn get_table_source(&mut self, table: &Identifier) -> LowerResult<Arc<dyn TableSource>> {
-        match self.ctx.get_table_source(&table.name) {
-            Ok(schema) => Ok(schema),
-            Err(e) => {
-                self.diagnostics.push(
-                    diagnostics::table_does_not_exist(hashmap! {
-                        "table" => table.name.to_string(),
-                    })
-                    .with_labels(vec![Label::primary(self.file_id, table.span)]),
-                );
-                Err(LowerError::GetTableSchemaError(e.into()))
-            }
+    fn lower_expr(&mut self, expr: Expression) -> LowerResult<Expr> {
+        match expr {
+            Expression::Column(column) => self.lower_column(column),
         }
+    }
+
+    fn lower_column(&mut self, column: ColumnExpression) -> LowerResult<Expr> {
+        let schema = self.table_source.schema();
+        if schema.field_with_name(&column.name.name).is_err() {
+            self.diagnostics.push(
+                diagnostics::column_does_not_exist(hashmap! {
+                    "column" => column.name.name.clone(),
+                    "table" => self.table_name.clone(),
+                })
+                .with_labels(vec![Label::primary(self.file_id, column.name.span)]),
+            );
+
+            return Err(LowerError::InvalidQuery);
+        }
+
+        Ok(expr_fn::col(column.name.name))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, sync::Arc};
+    use std::sync::Arc;
 
     use codespan::Files;
     use datafusion::{
-        arrow::datatypes::{DataType, SchemaRef},
-        logical_expr::{builder::LogicalTableSource, TableSource},
+        arrow::datatypes::{DataType, Schema},
+        logical_expr::builder::LogicalTableSource,
     };
     use expect_test::{expect, Expect};
 
@@ -129,53 +147,50 @@ mod tests {
         };
     }
 
-    macro_rules! test_context {
-        ($tenant_id:expr, $name:expr => $schema:expr) => {{
-            use std::collections::HashMap;
-
-            let mut sources = HashMap::new();
-            sources.insert($name.to_string(), Arc::new($schema));
-            TestQueryContext {
-                tenant_id: $tenant_id.to_string(),
-                sources,
-            }
-        }};
-    }
-
     struct TestQueryContext {
         pub tenant_id: String,
-        pub sources: HashMap<String, SchemaRef>,
+    }
+
+    impl TestQueryContext {
+        pub fn new(tenant_id: impl AsRef<str>) -> TestQueryContext {
+            TestQueryContext {
+                tenant_id: tenant_id.as_ref().to_string(),
+            }
+        }
     }
 
     impl QueryContext for TestQueryContext {
         fn get_tenant_id(&self) -> &str {
             &self.tenant_id
         }
-
-        fn get_table_source(&self, table: &str) -> anyhow::Result<Arc<dyn TableSource>> {
-            if let Some(schema) = self.sources.get(table) {
-                let source = LogicalTableSource::new(schema.clone());
-                Ok(Arc::new(source))
-            } else {
-                return Err(anyhow::anyhow!("table does not exist"));
-            }
-        }
     }
 
-    fn check(ctx: TestQueryContext, input: &str, expect: Expect) {
+    fn check(ctx: TestQueryContext, schema: Schema, input: &str, expect: Expect) {
+        let source = LogicalTableSource::new(Arc::new(schema));
         let mut files: Files<String> = Files::new();
         let fileid = files.add("query", input.to_string());
         let query = parse(input).unwrap();
-        let mut lowerer = Lowerer::new(Arc::new(ctx), fileid);
+        let mut lowerer = Lowerer::new(
+            Arc::new(ctx),
+            Arc::new(source),
+            fileid,
+            "http_requests".to_string(),
+        );
         let plan = lowerer.lower(query).unwrap();
         expect.assert_debug_eq(&plan);
     }
 
-    fn check_err(ctx: TestQueryContext, input: &str, expect: Expect) {
+    fn check_err(ctx: TestQueryContext, schema: Schema, input: &str, expect: Expect) {
+        let source = LogicalTableSource::new(Arc::new(schema));
         let mut files: Files<String> = Files::new();
         let fileid = files.add("query", input.to_string());
         let query = parse(input).unwrap();
-        let mut lowerer = Lowerer::new(Arc::new(ctx), fileid);
+        let mut lowerer = Lowerer::new(
+            Arc::new(ctx),
+            Arc::new(source),
+            fileid,
+            "http_requests".to_string(),
+        );
         let _ = lowerer.lower(query).unwrap_err();
         let diags = lowerer.diagnostics();
         expect.assert_debug_eq(&diags);
@@ -183,40 +198,57 @@ mod tests {
 
     #[test]
     fn basic_count() {
-        let ctx = test_context!("tenant", "http_requests" => schema! {
+        let ctx = TestQueryContext::new("tenant");
+        let schema = schema! {
             "bytes" => DataType::UInt64,
             "method" => DataType::Utf8
-        });
+        };
 
         let e = expect![[r#"
             Aggregate: groupBy=[[]], aggr=[[COUNT(*)]]
               TableScan: prism.tenant.http_requests
         "#]];
-        check(ctx, "http_requests | count", e);
+        check(ctx, schema, "http_requests | count", e);
     }
 
     #[test]
-    fn table_not_found() {
-        let ctx = test_context!("tenant", "http_requests" => schema! {
+    fn basic_count_by() {
+        let ctx = TestQueryContext::new("tenant");
+        let schema = schema! {
             "bytes" => DataType::UInt64,
             "method" => DataType::Utf8
-        });
+        };
 
-        let e: Expect = expect![[r#"
+        let e = expect![[r#"
+            Aggregate: groupBy=[[prism.tenant.http_requests.method]], aggr=[[COUNT(*)]]
+              TableScan: prism.tenant.http_requests
+        "#]];
+        check(ctx, schema, "http_requests | count by method", e);
+    }
+
+    #[test]
+    fn count_by_invalid_column() {
+        let ctx = TestQueryContext::new("tenant");
+        let schema = schema! {
+            "bytes" => DataType::UInt64,
+            "method" => DataType::Utf8
+        };
+
+        let e = expect![[r#"
             [
                 Diagnostic {
                     severity: Error,
                     code: Some(
                         "E0001",
                     ),
-                    message: "table `http_requests2` does not exist",
+                    message: "column `something` does not exist on table `http_requests`",
                     labels: [
                         Label {
                             style: Primary,
                             file_id: FileId(
                                 1,
                             ),
-                            range: 0..14,
+                            range: 25..34,
                             message: "",
                         },
                     ],
@@ -224,6 +256,6 @@ mod tests {
                 },
             ]
         "#]];
-        check_err(ctx, "http_requests2 | count", e);
+        check_err(ctx, schema, "http_requests | count by something", e);
     }
 }

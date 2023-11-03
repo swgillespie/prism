@@ -18,7 +18,7 @@ macro_rules! define_error {
 }
 
 define_error!(
-    table_does_not_exist,
+    column_does_not_exist,
     E0001,
-    "table `{table}` does not exist"
+    "column `{column}` does not exist on table `{table}`"
 );

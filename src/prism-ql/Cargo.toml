@@ -13,6 +13,7 @@ anyhow.workspace = true
 codespan = "0.11.1"
 codespan-reporting = "0.11.1"
 datafusion = { workspace = true }
+either = "1.9.0"
 lalrpop-util = { version = "0.20.0", features = ["lexer", "unicode"] }
 maplit = "1.0.2"
 strfmt = "0.2.4"

@@ -42,6 +42,7 @@ mod tests {
                                 start: ByteIndex(16),
                                 end: ByteIndex(21),
                             },
+                            by: None,
                         },
                     ),
                 ],

@@ -17,12 +17,16 @@ pub Query: Query = {
 };
 
 Pipeline: Pipeline = {
-    <l:@L> "count" <r: @R> => Pipeline::Count(Count { span: span(l, r) })
+    <l:@L> "count" <by:("by" <Expression>)?> <r: @R> => Pipeline::Count(Count { span: span(l, r), by })
 };
 
 Identifier: Identifier = {
     <l:@L> <n:Name> <r:@R> => Identifier { span: span(l, r), name: n }
 };
+
+Expression: Expression = {
+    <l:@L> <name:Identifier> <r:@R> => Expression::Column(ColumnExpression { span: span(l, r), name })
+}
 
 Name: String = <s:r"[a-zA-Z_][a-zA-Z0-9_]*"> => String::from(s);
 Integer: i64 = {

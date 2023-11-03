@@ -2224,6 +2224,7 @@ dependencies = [
  "codespan",
  "codespan-reporting",
  "datafusion",
+ "either",
  "expect-test",
  "lalrpop",
  "lalrpop-util",
