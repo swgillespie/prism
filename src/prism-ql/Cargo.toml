@@ -1,0 +1,23 @@
+[package]
+name = "prism-ql"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+lalrpop = { version = "0.20.0", features = ["unicode"] }
+
+[dependencies]
+anyhow.workspace = true
+codespan = "0.11.1"
+codespan-reporting = "0.11.1"
+datafusion = { workspace = true }
+lalrpop-util = { version = "0.20.0", features = ["lexer", "unicode"] }
+maplit = "1.0.2"
+strfmt = "0.2.4"
+thiserror = "1.0.50"
+
+
+[dev-dependencies]
+expect-test = "1.4.1"
