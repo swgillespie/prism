@@ -32,12 +32,18 @@ func newMetaClientProvider(metaConfig *config.Meta) ingest.MetaClientProvider {
 	}
 }
 
-func newCLI(logger *zap.Logger, workflows *ingest.Workflows, activities *ingest.Activities) (*cli.App, error) {
+func newCLI(
+	logger *zap.Logger,
+	temporalConfig *config.Temporal,
+	workflows *ingest.Workflows,
+	activities *ingest.Activities,
+) (*cli.App, error) {
 	return ingestv1.NewIngestCli(
 		ingestv1.NewIngestCliOptions().
 			WithClient(func(ctx *cli.Context) (client.Client, error) {
 				return client.Dial(client.Options{
-					Logger: NewLogAdaptor(logger),
+					HostPort: temporalConfig.Endpoint,
+					Logger:   NewLogAdaptor(logger),
 				})
 			}).
 			WithWorker(func(ctx *cli.Context, c client.Client) (worker.Worker, error) {
@@ -62,7 +68,7 @@ func workerMain() error {
 
 	wf := ingest.NewWorkflows()
 	act := ingest.NewActivities(config.GetIngest(), newMetaClientProvider(config.GetMeta()))
-	app, err := newCLI(logger, wf, act)
+	app, err := newCLI(logger, config.GetTemporal(), wf, act)
 	if err != nil {
 		return err
 	}

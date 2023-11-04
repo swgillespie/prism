@@ -1,7 +1,6 @@
 meta:
   endpoint: localhost:8080
 temporal:
-  task_queue: "prism-ingest"
   endpoint: localhost:7233
 ingest:
   ingest_binary_path: ./target/debug/prism-ingest

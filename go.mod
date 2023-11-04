@@ -12,7 +12,6 @@ require (
 	github.com/urfave/cli/v2 v2.25.7
 	go.temporal.io/api v1.24.0
 	go.temporal.io/sdk v1.25.1
-	go.temporal.io/server v1.22.0
 	go.uber.org/fx v1.20.1
 	go.uber.org/zap v1.24.0
 	google.golang.org/grpc v1.59.0
@@ -32,6 +31,7 @@ require (
 	github.com/apache/arrow/go/arrow v0.0.0-20211112161151-bc219186db40 // indirect
 	github.com/apache/thrift v0.18.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
+	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/benhoyt/goawk v1.21.0 // indirect
 	github.com/benthosdev/benthos/v4 v4.17.0 // indirect
 	github.com/bwmarrin/snowflake v0.3.0 // indirect
@@ -94,6 +94,9 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/sftp v1.13.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/prometheus/client_golang v1.16.0 // indirect
+	github.com/prometheus/common v0.44.0 // indirect
+	github.com/prometheus/procfs v0.11.0 // indirect
 	github.com/quipo/dependencysolver v0.0.0-20170801134659-2b009cb4ddcc // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rickb777/date v1.17.0 // indirect
