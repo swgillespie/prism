@@ -82,14 +82,18 @@ func (a *Activities) RecordNewPartition(ctx context.Context, input *ingestv1.Rec
 }
 
 func (a *Activities) TransformToParquet(ctx context.Context, input *ingestv1.TransformToParquetRequest) (*ingestv1.TransformToParquetResponse, error) {
-	cmd := exec.CommandContext(ctx, a.ingestConfig.IngestBinaryPath,
+	args := []string{
 		"--source", input.Source,
 		"--location", input.Location,
 		"--destination", input.Destination,
 		"--tenant-id", input.TenantId,
 		"--table", input.Table,
-	)
+	}
+	if a.ingestConfig.S3Endpoint != "" {
+		args = append(args, "--s3-endpoint", a.ingestConfig.S3Endpoint)
+	}
 
+	cmd := exec.CommandContext(ctx, a.ingestConfig.IngestBinaryPath, args...)
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = os.Stderr

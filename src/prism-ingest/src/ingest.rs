@@ -83,7 +83,7 @@ impl Ingestor {
                 NdJsonReadOptions {
                     schema: None,
                     schema_infer_max_records: DEFAULT_SCHEMA_INFER_MAX_RECORD,
-                    file_extension: "json",
+                    file_extension: "log",
                     table_partition_cols: vec![],
                     file_compression_type: FileCompressionType::UNCOMPRESSED,
                     infinite: false,

@@ -17,13 +17,22 @@
     }
   },
   "sinks": {
-    "file": {
-      "type": "file",
+    "s3": {
+      "type": "aws_s3",
       "inputs": ["remap"],
-      "path": "./demo.json",
+      "bucket": "ingest",
+      "endpoint": "http://localhost:4566",
+      "batch": {
+        "timeout_secs": 15
+      },
       "encoding": {
         "codec": "json"
-      }
+      },
+      "framing": {
+        "method": "newline_delimited"
+      },
+      "compression": "none",
+      "filename_append_uuid": true
     }
   }
 }

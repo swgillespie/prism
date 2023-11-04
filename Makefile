@@ -12,13 +12,9 @@ install-dependencies: ## Installs all compile-time dependencies.
 	go install github.com/golang/mock/mockgen@v1.6.0
 	go install github.com/bufbuild/buf/cmd/buf@v1.27.2
 	go install github.com/cludden/protoc-gen-go-temporal/cmd/protoc-gen-go_temporal@v1.0.2
-generate:
-	protoc --go_out=.   \
-		--go-grpc_out=. \
-		./src/prism-proto/proto/*.proto
 
 run: ## Runs all services locally.
-	OVERMIND_CAN_DIE=ingest-build overmind start
+	overmind start
 
 ## Help:
 help: ## Show this help.

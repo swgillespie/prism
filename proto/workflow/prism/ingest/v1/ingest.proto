@@ -60,7 +60,7 @@ service Ingest {
     option (temporal.v1.workflow) = {
       execution_timeout: { seconds: 360 }
       id_reuse_policy: WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
-      id: 'ingest/${!tenant_id.slug()}/${!table.slug()}/${!location.slug()}'
+      id: 'ingest/${! location.slug() }'
     };
   }
 

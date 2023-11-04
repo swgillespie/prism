@@ -5,7 +5,7 @@ use clap::Parser;
 use datafusion::prelude::SessionContext;
 use envconfig::Envconfig;
 use ingest::Ingestor;
-use object_store::{aws::AmazonS3Builder, local::LocalFileSystem, path::Path};
+use object_store::{aws::AmazonS3Builder, path::Path};
 use tracing::Level;
 use tracing_subscriber::prelude::*;
 use url::Url;
@@ -38,7 +38,7 @@ struct Args {
     #[arg(long)]
     table: String,
     #[arg(long)]
-    s3: bool,
+    s3_endpoint: Option<String>,
 }
 
 #[tokio::main]
@@ -72,51 +72,52 @@ async fn run() -> anyhow::Result<()> {
 }
 
 fn initialize_session(args: &Args, ctx: &SessionContext) -> anyhow::Result<Ingestor> {
-    const LOCAL_SOURCE_BUCKET: &str = "source";
-    const LOCAL_DESTINATION_BUCKET: &str = "destination";
-
-    if args.s3 {
-        tracing::info!(source = %args.source, destination = %args.destination, "using s3 storage");
-        let config = Config::init_from_env()?;
-        let source_store = AmazonS3Builder::new()
+    tracing::info!(source = %args.source, destination = %args.destination, "using s3 storage");
+    let config = Config::init_from_env()?;
+    let source_store = {
+        let mut builder = AmazonS3Builder::new()
             .with_access_key_id(&config.aws_access_key_id)
             .with_secret_access_key(&config.aws_secret_access_key)
             .with_region(&config.aws_region)
-            .with_bucket_name(&args.source)
-            .build()
-            .context("building S3 Source Object Store")?;
-        let destination_store = AmazonS3Builder::new()
+            .with_bucket_name(&args.source);
+        builder = if let Some(endpoint) = &args.s3_endpoint {
+            tracing::info!(source = %endpoint, "using custom s3 endpoint for source");
+            builder.with_endpoint(endpoint).with_allow_http(true)
+        } else {
+            tracing::info!("using default s3 endpoint for source");
+            builder
+        };
+
+        builder.build().context("building S3 source object store")?
+    };
+
+    let destination_store = {
+        let mut builder = AmazonS3Builder::new()
             .with_access_key_id(&config.aws_access_key_id)
             .with_secret_access_key(&config.aws_secret_access_key)
             .with_region(&config.aws_region)
-            .with_bucket_name(&args.destination)
+            .with_bucket_name(&args.destination);
+        builder = if let Some(endpoint) = &args.s3_endpoint {
+            tracing::info!(source = %endpoint, "using custom s3 endpoint for destination");
+            builder.with_endpoint(endpoint).with_allow_http(true)
+        } else {
+            tracing::info!("using default s3 endpoint for destination");
+            builder
+        };
+
+        builder
             .build()
-            .context("building S3 Destination Object Store")?;
-        let source_url = Url::parse(&format!("s3://{}", &args.source))
-            .context("building source object store URL")?;
-        ctx.runtime_env()
-            .register_object_store(&source_url, Arc::new(source_store));
-        let destination_url = Url::parse(&format!("s3://{}", &args.destination))
-            .context("building source object store URL")?;
-        ctx.runtime_env()
-            .register_object_store(&destination_url, Arc::new(destination_store));
-        let ingestor = Ingestor::new(&args.source, &args.destination);
-        return Ok(ingestor);
-    }
+            .context("building S3 destination object store")?
+    };
 
-    tracing::info!(source = %args.source, destination = %args.destination, "using local storage");
-    let source_store = LocalFileSystem::new_with_prefix(std::path::Path::new(&args.source))?;
-    let destination_store =
-        LocalFileSystem::new_with_prefix(std::path::Path::new(&args.destination))?;
-
-    let source_url = Url::parse(&format!("s3://{}", LOCAL_SOURCE_BUCKET))
+    let source_url = Url::parse(&format!("s3://{}", &args.source))
         .context("building source object store URL")?;
     ctx.runtime_env()
         .register_object_store(&source_url, Arc::new(source_store));
-    let destination_url = Url::parse(&format!("s3://{}", LOCAL_DESTINATION_BUCKET))
+    let destination_url = Url::parse(&format!("s3://{}", &args.destination))
         .context("building source object store URL")?;
     ctx.runtime_env()
         .register_object_store(&destination_url, Arc::new(destination_store));
-    let ingestor = Ingestor::new(LOCAL_SOURCE_BUCKET, LOCAL_DESTINATION_BUCKET);
-    Ok(ingestor)
+    let ingestor = Ingestor::new(&args.source, &args.destination);
+    return Ok(ingestor);
 }

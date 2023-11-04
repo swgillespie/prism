@@ -33,7 +33,7 @@ const (
 
 // prism.ingest.v1.Ingest workflow id expressions
 var (
-	IngestObjectIDExpression = expression.MustParseExpression("ingest/${!tenant_id.slug()}/${!table.slug()}/${!location.slug()}")
+	IngestObjectIDExpression = expression.MustParseExpression("ingest/${! location.slug() }")
 )
 
 // prism.ingest.v1.Ingest activity names
