@@ -7,7 +7,6 @@ require (
 	github.com/aws/aws-sdk-go v1.42.31
 	github.com/cludden/protoc-gen-go-temporal v1.0.2
 	github.com/cockroachdb/cockroach-go/v2 v2.3.5
-	github.com/davecgh/go-spew v1.1.1
 	github.com/golang-migrate/migrate/v4 v4.16.2
 	github.com/jackc/pgx/v5 v5.4.3
 	github.com/kelseyhightower/envconfig v1.4.0
@@ -42,6 +41,7 @@ require (
 	github.com/clbanning/mxj/v2 v2.5.7 // indirect
 	github.com/cockroachdb/apd/v2 v2.0.2 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/facebookgo/clock v0.0.0-20150410010913-600d898af40a // indirect
 	github.com/fatih/color v1.15.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
