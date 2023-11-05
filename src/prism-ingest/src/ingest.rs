@@ -225,13 +225,13 @@ mod tests {
             .register_object_store(&ingestor_url, ingestor_memstore.clone());
         ctx.runtime_env()
             .register_object_store(&query_url, query_memstore.clone());
-        let ingest_path = Path::from("demo.json");
-        let ingest_data = Bytes::from_static(include_bytes!("./testdata/demo.json"));
+        let ingest_path = Path::from("demo.log");
+        let ingest_data = Bytes::from_static(include_bytes!("./testdata/demo.log"));
         ingestor_memstore
             .put(&ingest_path, ingest_data)
             .await
             .unwrap();
-        let target_path = format!("{}/{}/demo.json.parquet", TENANT_ID, TABLE);
+        let target_path = format!("{}/{}/demo.log.parquet", TENANT_ID, TABLE);
         let ingestor = Ingestor::new(INGEST_BUCKET_NAME, QUERY_BUCKET_NAME);
         let partition = ingestor
             .ingest_new_object(&ctx, TENANT_ID, TABLE, &ingest_path)
