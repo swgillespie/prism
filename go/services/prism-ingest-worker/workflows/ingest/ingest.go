@@ -93,6 +93,8 @@ func (a *Activities) TransformToParquet(ctx context.Context, input *ingestv1.Tra
 		args = append(args, "--s3-endpoint", a.ingestConfig.S3Endpoint)
 	}
 
+	logger := activity.GetLogger(ctx)
+	logger.Info("starting ingest binary", "args", args)
 	cmd := exec.CommandContext(ctx, a.ingestConfig.IngestBinaryPath, args...)
 	var buf bytes.Buffer
 	cmd.Stdout = &buf

@@ -32,7 +32,8 @@
         "method": "newline_delimited"
       },
       "compression": "none",
-      "filename_append_uuid": true
+      "filename_append_uuid": true,
+      "key_prefix": "tenant_id=demo/table=http_requests/"
     }
   }
 }

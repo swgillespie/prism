@@ -1,0 +1,9 @@
+ingest_event_listener:
+  sqs_endpoint: http://localhost:4566
+  sqs_queue_endpoint: http://localhost:4566/000000000000/ingest-queue
+  max_messages: 10
+  poll_timeout_seconds: 15
+  message_handle_timeout_seconds: 5
+  destination_bucket: query
+temporal:
+  endpoint: localhost:7233

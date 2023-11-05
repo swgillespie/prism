@@ -11,6 +11,7 @@ message IngestObjectRequest {
   string source = 3;
   string destination = 4;
   string location = 5;
+  string idempotency_token = 6;
 }
 
 message TransformToParquetRequest {
@@ -59,8 +60,8 @@ service Ingest {
   rpc IngestObject(IngestObjectRequest) returns (google.protobuf.Empty) {
     option (temporal.v1.workflow) = {
       execution_timeout: { seconds: 360 }
-      id_reuse_policy: WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
-      id: 'ingest/${! location.slug() }'
+      id_reuse_policy: WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
+      id: 'ingest/${! idempotencyToken.slug() }'
     };
   }
 

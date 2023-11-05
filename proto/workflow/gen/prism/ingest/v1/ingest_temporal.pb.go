@@ -33,7 +33,7 @@ const (
 
 // prism.ingest.v1.Ingest workflow id expressions
 var (
-	IngestObjectIDExpression = expression.MustParseExpression("ingest/${! location.slug() }")
+	IngestObjectIDExpression = expression.MustParseExpression("ingest/${! idempotencyToken.slug() }")
 )
 
 // prism.ingest.v1.Ingest activity names
@@ -102,7 +102,7 @@ func (c *ingestClient) IngestObjectAsync(ctx context.Context, req *IngestObjectR
 		opts.ID = id
 	}
 	if opts.WorkflowIDReusePolicy == v1.WORKFLOW_ID_REUSE_POLICY_UNSPECIFIED {
-		opts.WorkflowIDReusePolicy = v1.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
+		opts.WorkflowIDReusePolicy = v1.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
 	}
 	if opts.WorkflowExecutionTimeout == 0 {
 		opts.WorkflowExecutionTimeout = 360000000000 // 6m0s
@@ -276,7 +276,7 @@ func IngestObjectChildAsync(ctx workflow.Context, req *IngestObjectRequest, opti
 		opts.WorkflowID = id
 	}
 	if opts.WorkflowIDReusePolicy == v1.WORKFLOW_ID_REUSE_POLICY_UNSPECIFIED {
-		opts.WorkflowIDReusePolicy = v1.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
+		opts.WorkflowIDReusePolicy = v1.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
 	}
 	if opts.WorkflowExecutionTimeout == 0 {
 		opts.WorkflowExecutionTimeout = 360000000000 // 6m0s
@@ -722,7 +722,7 @@ func (c *TestIngestClient) IngestObjectAsync(ctx context.Context, req *IngestObj
 		opts.ID = id
 	}
 	if opts.WorkflowIDReusePolicy == v1.WORKFLOW_ID_REUSE_POLICY_UNSPECIFIED {
-		opts.WorkflowIDReusePolicy = v1.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
+		opts.WorkflowIDReusePolicy = v1.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
 	}
 	if opts.WorkflowExecutionTimeout == 0 {
 		opts.WorkflowExecutionTimeout = 360000000000 // 6m0s
@@ -904,6 +904,11 @@ func newIngestCommands(options ...*IngestCliOptions) ([]*v2.Command, error) {
 					Usage:    "set the value of the operation's \"Location\" parameter",
 					Category: "INPUT",
 				},
+				&v2.StringFlag{
+					Name:     "idempotency-token",
+					Usage:    "set the value of the operation's \"IdempotencyToken\" parameter",
+					Category: "INPUT",
+				},
 			},
 			Action: func(cmd *v2.Context) error {
 				c, err := opts.clientForCommand(cmd)
@@ -993,6 +998,10 @@ func unmarshalCliFlagsToIngestObjectRequest(cmd *v2.Context) (*IngestObjectReque
 	if cmd.IsSet("location") {
 		hasValues = true
 		result.Location = cmd.String("location")
+	}
+	if cmd.IsSet("idempotency-token") {
+		hasValues = true
+		result.IdempotencyToken = cmd.String("idempotency-token")
 	}
 	if !hasValues {
 		return nil, nil
