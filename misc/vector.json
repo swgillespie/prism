@@ -6,7 +6,7 @@
       "framing": {
         "method": "newline_delimited"
       },
-      "interval": 0.1
+      "interval": 0
     }
   },
   "transforms": {

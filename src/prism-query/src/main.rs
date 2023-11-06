@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::Context;
+use console_subscriber::ConsoleLayer;
 use datafusion::prelude::SessionContext;
 use envconfig::Envconfig;
 use meta::provider::DirectMetaClientProvider;
@@ -42,7 +43,11 @@ async fn main() {
             tracing_subscriber::EnvFilter::from_default_env().add_directive(Level::INFO.into()),
         )
         .boxed();
-    tracing_subscriber::registry().with(layer).init();
+    let console_layer = ConsoleLayer::builder().with_default_env().spawn().boxed();
+    tracing_subscriber::registry()
+        .with(layer)
+        .with(console_layer)
+        .init();
 
     if let Err(e) = repl().await {
         eprintln!("error: {:?}", e);

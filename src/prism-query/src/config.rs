@@ -11,6 +11,10 @@ use serde::{Deserialize, Serialize};
 pub struct MetaConfig {
     /// The endpoint that the meta service is listening on.
     pub endpoint: String,
+    /// Timeout for Meta RPC calls.
+    pub timeout_seconds: u64,
+    /// Timeout for connecting to Meta.
+    pub connect_timeout_seconds: u64,
 }
 
 /// Configuration pertaining to S3.

@@ -70,6 +70,7 @@ func (s *server) GetTableSchema(ctx context.Context, req *metav1.GetTableSchemaR
 		return nil, status.New(codes.Internal, err.Error()).Err()
 	}
 
+	defer conn.Release()
 	rows, err := conn.Query(ctx, `
 		SELECT column_name, type FROM meta.table_schemas
 		WHERE tenant_id = $1 AND table_name = $2
@@ -109,6 +110,7 @@ func (s *server) GetTablePartitions(ctx context.Context, req *metav1.GetTablePar
 		return nil, status.New(codes.Internal, err.Error()).Err()
 	}
 
+	defer conn.Release()
 	var rows pgx.Rows
 	if req.TimeRange != nil {
 		rows, err = conn.Query(ctx,
@@ -164,6 +166,7 @@ func (s *server) RecordNewPartition(ctx context.Context, req *metav1.RecordNewPa
 		return nil, status.New(codes.Internal, err.Error()).Err()
 	}
 
+	defer conn.Release()
 	err = crdbpgx.ExecuteTx(ctx, conn, pgx.TxOptions{}, func(tx pgx.Tx) error {
 		batch := &pgx.Batch{}
 		for _, column := range req.GetColumns() {
