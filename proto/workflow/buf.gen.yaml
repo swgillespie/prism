@@ -3,6 +3,8 @@ managed:
   enabled: true
   go_package_prefix:
     default: code.temporal.io/proto/workflow/gen/go
+    override:
+      buf.build/prism/common: code.prism.io/proto/common/gen/go
     except:
       - buf.build/cludden/protoc-gen-go-temporal
 plugins:

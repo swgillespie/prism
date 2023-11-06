@@ -2166,6 +2166,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8835116a5c179084a830efb3adc117ab007512b535bc1a21c991d3b32a6b44dd"
 
 [[package]]
+name = "pbjson"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1030c719b0ec2a2d25a5df729d6cff1acf3cc230bf766f4f97833591f7577b90"
+dependencies = [
+ "base64 0.21.4",
+ "serde",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2333,7 +2343,9 @@ checksum = "925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c"
 name = "prism-common-v1"
 version = "0.1.0"
 dependencies = [
+ "pbjson",
  "prost",
+ "serde",
 ]
 
 [[package]]
@@ -2347,6 +2359,7 @@ dependencies = [
  "envconfig",
  "futures",
  "object_store",
+ "prism-common-v1",
  "serde",
  "serde_json",
  "tokio",
@@ -2384,10 +2397,13 @@ dependencies = [
  "envconfig",
  "futures",
  "object_store",
+ "prism-common-v1",
  "prism-rpc-meta-v1",
  "serde",
  "tokio",
  "tonic",
+ "tracing",
+ "tracing-subscriber",
  "url",
 ]
 

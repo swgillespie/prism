@@ -17,46 +17,14 @@ use datafusion::{
     prelude::{DataFrame, Expr, NdJsonReadOptions, SessionContext},
 };
 use object_store::path::Path;
-use serde::Serialize;
 use tracing::{info_span, Instrument};
 use url::Url;
+
+use prism_common_v1::{Column, ColumnType, Partition, PartitionWithColumns, TimeRange};
 
 pub struct Ingestor {
     ingest_bucket_name: String,
     query_bucket_name: String,
-}
-
-#[derive(Serialize, Debug)]
-pub struct Partition {
-    pub name: String,
-    pub size: usize,
-    pub max_ts: i64,
-    pub min_ts: i64,
-    pub columns: Vec<Column>,
-}
-
-#[derive(Serialize, Debug)]
-pub struct Column {
-    pub name: String,
-    pub data_type: ColumnType,
-}
-
-#[derive(Serialize, Debug)]
-pub enum ColumnType {
-    String,
-    Int64,
-    Timestamp,
-}
-
-impl From<&DataType> for ColumnType {
-    fn from(dt: &DataType) -> Self {
-        match dt {
-            DataType::Utf8 => Self::String,
-            DataType::Int64 => Self::Int64,
-            DataType::Timestamp(_, _) => Self::Timestamp,
-            _ => unimplemented!(),
-        }
-    }
 }
 
 impl Ingestor {
@@ -74,7 +42,7 @@ impl Ingestor {
         tenant_id: &str,
         table: &str,
         location: &Path,
-    ) -> anyhow::Result<Partition> {
+    ) -> anyhow::Result<PartitionWithColumns> {
         let path = format!("s3://{}/{}", self.ingest_bucket_name, location);
         let read_span = info_span!("read_json", path = %path);
         let mut df = ctx
@@ -158,11 +126,15 @@ impl Ingestor {
             .head(&Path::from(output_path.as_ref()))
             .await?;
 
-        Ok(Partition {
-            name: output_path,
-            size: object.size,
-            max_ts,
-            min_ts,
+        Ok(PartitionWithColumns {
+            partition: Some(Partition {
+                name: output_path,
+                size: object.size as i64,
+                time_range: Some(TimeRange {
+                    start_time: min_ts,
+                    end_time: max_ts,
+                }),
+            }),
             columns,
         })
     }
@@ -191,9 +163,18 @@ fn gather_columns(df: &DataFrame) -> Vec<Column> {
         .iter()
         .map(|field| Column {
             name: field.name().to_string(),
-            data_type: field.data_type().into(),
+            r#type: datafusion_to_column_type(field.data_type()).into(),
         })
         .collect()
+}
+
+fn datafusion_to_column_type(ty: &DataType) -> ColumnType {
+    match ty {
+        DataType::Int64 => ColumnType::Int64,
+        DataType::Utf8 => ColumnType::Utf8,
+        DataType::Timestamp(_, _) => ColumnType::Timestamp,
+        _ => unimplemented!("unsupported data type {:?}", ty),
+    }
 }
 
 #[cfg(test)]
@@ -233,15 +214,17 @@ mod tests {
             .unwrap();
         let target_path = format!("{}/{}/demo.log.parquet", TENANT_ID, TABLE);
         let ingestor = Ingestor::new(INGEST_BUCKET_NAME, QUERY_BUCKET_NAME);
-        let partition = ingestor
+        let partition_with_cols = ingestor
             .ingest_new_object(&ctx, TENANT_ID, TABLE, &ingest_path)
             .await
             .unwrap();
+        let partition = partition_with_cols.partition.unwrap();
         assert_eq!(partition.name, target_path);
         assert!(partition.size > 0);
-        assert_eq!(partition.max_ts, 1698000995523);
-        assert_eq!(partition.min_ts, 1698000992225);
-        assert_eq!(partition.columns.len(), 10);
+        let range = partition.time_range.unwrap();
+        assert_eq!(range.end_time, 1698000995523);
+        assert_eq!(range.start_time, 1698000992225);
+        assert_eq!(partition_with_cols.columns.len(), 10);
         query_memstore
             .head(&Path::from(target_path))
             .await

@@ -9,3 +9,5 @@ plugins:
     opt: paths=source_relative
   - plugin: buf.build/community/neoeinstein-prost:v0.2.3
     out: gen/rust
+  - plugin: buf.build/community/neoeinstein-prost-serde:v0.2.3
+    out: gen/rust

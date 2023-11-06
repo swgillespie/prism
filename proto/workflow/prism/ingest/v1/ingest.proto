@@ -4,6 +4,7 @@ package prism.ingest.v1;
 
 import "google/protobuf/empty.proto";
 import "temporal/v1/temporal.proto";
+import "prism/common/v1/partition.proto";
 
 message IngestObjectRequest {
   string tenant_id = 1;
@@ -23,33 +24,13 @@ message TransformToParquetRequest {
 }
 
 message TransformToParquetResponse {
-  Partition partition = 1;
-}
-
-message Partition {
-  string name = 1;
-  uint64 size = 2;
-  int64 max_timestamp = 3;
-  int64 min_timestamp = 4;
-  repeated Column columns = 5;
-}
-
-message Column {
-  string name = 1;
-  ColumnType type = 2;
-}
-
-enum ColumnType {
-  COLUMN_TYPE_UNSPECIFIED = 0;
-  COLUMN_TYPE_INT64 = 1;
-  COLUMN_TYPE_UTF8 = 2;
-  COLUMN_TYPE_TIMESTAMP = 3;
+  prism.common.v1.PartitionWithColumns partition = 1;
 }
 
 message RecordNewPartitionRequest {
   string tenant_id = 1;
   string table = 2;
-  Partition partition = 3;
+  prism.common.v1.PartitionWithColumns partition = 3;
 }
 
 service Ingest {

@@ -3,13 +3,13 @@ package ingest
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"os"
 	"os/exec"
 	"time"
 
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/workflow"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	commonv1 "code.prism.io/proto/common/gen/go/prism/common/v1"
 	metav1 "code.prism.io/proto/rpc/gen/go/prism/meta/v1"
@@ -56,26 +56,11 @@ func (a *Activities) RecordNewPartition(ctx context.Context, input *ingestv1.Rec
 		return err
 	}
 
-	var columns []*commonv1.Column
-	for _, column := range input.Partition.Columns {
-		columns = append(columns, &commonv1.Column{
-			Name: column.Name,
-			Type: commonv1.ColumnType(column.Type),
-		})
-	}
-
 	_, err = client.RecordNewPartition(ctx, &metav1.RecordNewPartitionRequest{
 		TenantId:  input.TenantId,
 		TableName: input.Table,
-		Partition: &commonv1.Partition{
-			Name: input.Partition.Name,
-			Size: int64(input.Partition.Size),
-			TimeRange: &commonv1.TimeRange{
-				StartTime: input.Partition.MinTimestamp,
-				EndTime:   input.Partition.MaxTimestamp,
-			},
-		},
-		Columns: columns,
+		Partition: input.Partition.GetPartition(),
+		Columns:   input.Partition.GetColumns(),
 	})
 	return err
 
@@ -103,7 +88,7 @@ func (a *Activities) TransformToParquet(ctx context.Context, input *ingestv1.Tra
 		return nil, err
 	}
 
-	var result ingestv1.Partition
+	var result commonv1.PartitionWithColumns
 	doneChan := make(chan error)
 	go func() {
 		err := cmd.Wait()
@@ -112,7 +97,7 @@ func (a *Activities) TransformToParquet(ctx context.Context, input *ingestv1.Tra
 			return
 		}
 
-		err = json.Unmarshal(buf.Bytes(), &result)
+		err = protojson.Unmarshal(buf.Bytes(), &result)
 		doneChan <- err
 		close(doneChan)
 	}()

@@ -13,7 +13,7 @@
     "remap": {
       "type": "remap",
       "inputs": ["demo"],
-      "file": "./remap.vrl"
+      "file": "./misc/remap.vrl"
     }
   },
   "sinks": {

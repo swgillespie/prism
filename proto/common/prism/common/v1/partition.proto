@@ -18,6 +18,11 @@ message Column {
   ColumnType type = 2;
 }
 
+message PartitionWithColumns {
+  Partition partition = 1;
+  repeated Column columns = 2;
+}
+
 enum ColumnType {
   COLUMN_TYPE_UNSPECIFIED = 0;
   COLUMN_TYPE_INT64 = 1;

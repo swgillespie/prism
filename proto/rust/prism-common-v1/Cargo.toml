@@ -6,4 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+pbjson = "0.6.0"
 prost = "0.12.1"
+serde = { version = "1.0.190", features = ["serde_derive"] }

@@ -16,7 +16,10 @@ tokio.workspace = true
 url = "2.4.1"
 tonic = "0.10.2"
 chrono = "0.4.31"
-
-prism-rpc-meta-v1 = { path = "../../proto/rust/prism-rpc-meta-v1" }
 config = "0.13.3"
 serde = { version = "1.0.190", features = ["serde_derive"] }
+tracing-subscriber = "0.3.17"
+tracing = "0.1.40"
+
+prism-rpc-meta-v1 = { path = "../../proto/rust/prism-rpc-meta-v1" }
+prism-common-v1 = { path = "../../proto/rust/prism-common-v1" }

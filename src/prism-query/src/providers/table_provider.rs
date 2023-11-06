@@ -22,7 +22,7 @@ use object_store::{path::Path, ObjectMeta};
 
 use prism_rpc_meta_v1::GetTablePartitionsRequest;
 
-use crate::meta::provider::MetaClientProvider;
+use crate::{config::S3Config, meta::provider::MetaClientProvider};
 
 pub struct PrismTableProvider {
     schema: Arc<Schema>,
@@ -30,6 +30,7 @@ pub struct PrismTableProvider {
     tenant: String,
     table: String,
     client_provider: Arc<dyn MetaClientProvider>,
+    s3_config: S3Config,
 }
 
 impl PrismTableProvider {
@@ -38,6 +39,7 @@ impl PrismTableProvider {
         tenant: impl AsRef<str>,
         table: impl AsRef<str>,
         client_provider: Arc<dyn MetaClientProvider>,
+        s3_config: S3Config,
     ) -> Self {
         Self {
             schema,
@@ -45,6 +47,7 @@ impl PrismTableProvider {
             tenant: tenant.as_ref().to_string(),
             table: table.as_ref().to_string(),
             client_provider,
+            s3_config,
         }
     }
 }
@@ -74,8 +77,7 @@ impl TableProvider for PrismTableProvider {
         filters: &[Expr],
         limit: Option<usize>,
     ) -> datafusion::common::Result<Arc<dyn ExecutionPlan>> {
-        let url_path = format!("s3://prism-storage-b7c0d9c");
-        let path = Path::from(self.table.clone());
+        let url_path = format!("s3://{}", self.s3_config.bucket_name);
         let client = self
             .client_provider
             .get_client()
@@ -95,7 +97,7 @@ impl TableProvider for PrismTableProvider {
                 object_meta: ObjectMeta {
                     size: p.size as usize,
                     last_modified: Utc::now(),
-                    location: path.child(p.name),
+                    location: Path::from(p.name),
                     e_tag: None,
                 },
                 partition_values: vec![],

@@ -25,6 +25,14 @@ pub struct Column {
     #[prost(enumeration="ColumnType", tag="2")]
     pub r#type: i32,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PartitionWithColumns {
+    #[prost(message, optional, tag="1")]
+    pub partition: ::core::option::Option<Partition>,
+    #[prost(message, repeated, tag="2")]
+    pub columns: ::prost::alloc::vec::Vec<Column>,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum ColumnType {
@@ -57,4 +65,5 @@ impl ColumnType {
         }
     }
 }
+include!("prism.common.v1.serde.rs");
 // @@protoc_insertion_point(module)

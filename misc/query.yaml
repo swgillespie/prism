@@ -1,0 +1,5 @@
+meta:
+  endpoint: http://localhost:8080
+s3:
+  endpoint: http://localhost:4566
+  bucket_name: query

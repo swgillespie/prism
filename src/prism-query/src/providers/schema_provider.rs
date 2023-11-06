@@ -2,27 +2,34 @@ use std::{any::Any, sync::Arc};
 
 use async_trait::async_trait;
 use datafusion::{
-    arrow::datatypes::{DataType, Field, Schema},
+    arrow::datatypes::{DataType, Field, Schema, TimeUnit},
     catalog::schema::SchemaProvider,
     datasource::TableProvider,
 };
 
-use crate::{meta::provider::MetaClientProvider, providers::table_provider::PrismTableProvider};
+use crate::{
+    config::S3Config, meta::provider::MetaClientProvider,
+    providers::table_provider::PrismTableProvider,
+};
+use prism_common_v1::ColumnType;
 use prism_rpc_meta_v1::GetTableSchemaRequest;
 
 pub struct PrismSchemaProvider {
     tenant: String,
     client_provider: Arc<dyn MetaClientProvider>,
+    s3_config: S3Config,
 }
 
 impl PrismSchemaProvider {
     pub fn new(
         tenant: String,
         client_provider: Arc<dyn MetaClientProvider>,
+        s3_config: S3Config,
     ) -> PrismSchemaProvider {
         PrismSchemaProvider {
             tenant,
             client_provider,
+            s3_config,
         }
     }
 }
@@ -38,47 +45,34 @@ impl SchemaProvider for PrismSchemaProvider {
     }
 
     async fn table(&self, name: &str) -> Option<Arc<dyn TableProvider>> {
-        /*
-        let mut client = self.meta_client.lock().await;
-        let resp = client
-            .get_table_schema(Request::new(GetTableSchemaRequest {
-                tenant_id: self.tenant.clone(),
-                table_name: name.to_string(),
-            }))
-            .await
-            .ok()?;
-        let schema = resp.into_inner();
-        let mut fields = vec![];
-        for field in schema.columns {
-            let datatype = match field.r#type {
-                1 => DataType::Int64,
-                2 => DataType::Utf8,
-                _ => unimplemented!(),
+        let schema = {
+            let client = match self.client_provider.get_client().await {
+                Ok(client) => client,
+                Err(e) => {
+                    tracing::error!(err = ?e, "failed to get meta client");
+                    return None;
+                }
             };
 
-            fields.push(Field::new(field.name, datatype, true))
-        }
-
-        let schema = Arc::new(Schema::new(fields));
-        */
-        let schema = {
-            let client = self.client_provider.get_client().await.ok()?;
-            let resp = client
-                .get_table_schema(GetTableSchemaRequest {
-                    tenant_id: self.tenant.clone(),
-                    table_name: name.to_string(),
-                })
-                .await
-                .ok()?;
+            let resp = {
+                match client
+                    .get_table_schema(GetTableSchemaRequest {
+                        tenant_id: self.tenant.clone(),
+                        table_name: name.to_string(),
+                    })
+                    .await
+                {
+                    Ok(resp) => resp,
+                    Err(e) => {
+                        tracing::error!(err = ?e, "failed to get table schema");
+                        return None;
+                    }
+                }
+            };
 
             let mut fields = vec![];
             for field in resp.columns {
-                let datatype = match field.r#type {
-                    1 => DataType::Int64,
-                    2 => DataType::Utf8,
-                    _ => unimplemented!(),
-                };
-
+                let datatype = column_type_to_datafusion(field.r#type());
                 fields.push(Field::new(field.name, datatype, true))
             }
 
@@ -90,10 +84,20 @@ impl SchemaProvider for PrismSchemaProvider {
             &self.tenant,
             name,
             self.client_provider.clone(),
+            self.s3_config.clone(),
         )))
     }
 
     fn table_exist(&self, _: &str) -> bool {
         true
+    }
+}
+
+fn column_type_to_datafusion(ty: ColumnType) -> DataType {
+    match ty {
+        ColumnType::Int64 => DataType::Int64,
+        ColumnType::Utf8 => DataType::Utf8,
+        ColumnType::Timestamp => DataType::Timestamp(TimeUnit::Millisecond, None),
+        ColumnType::Unspecified => unimplemented!(),
     }
 }
