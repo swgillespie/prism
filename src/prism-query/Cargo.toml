@@ -23,4 +23,4 @@ tracing = "0.1.40"
 
 prism-rpc-meta-v1 = { path = "../../proto/rust/prism-rpc-meta-v1" }
 prism-common-v1 = { path = "../../proto/rust/prism-common-v1" }
-console-subscriber = "0.2.0"
+clap = { version = "4.4.8", features = ["derive"] }

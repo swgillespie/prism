@@ -93,22 +93,24 @@ impl TableProvider for PrismTableProvider {
             .map_err(|e| DataFusionError::Execution(e.to_string()))?
             .partitions
             .into_iter()
-            .map(|p| PartitionedFile {
-                object_meta: ObjectMeta {
-                    size: p.size as usize,
-                    last_modified: Utc::now(),
-                    location: Path::from(p.name),
-                    e_tag: None,
-                },
-                partition_values: vec![],
-                range: None,
-                extensions: None,
+            .map(|p| {
+                vec![PartitionedFile {
+                    object_meta: ObjectMeta {
+                        size: p.size as usize,
+                        last_modified: Utc::now(),
+                        location: Path::from(p.name),
+                        e_tag: None,
+                    },
+                    partition_values: vec![],
+                    range: None,
+                    extensions: None,
+                }]
             })
             .collect::<Vec<_>>();
         let config = FileScanConfig {
             object_store_url: ObjectStoreUrl::parse(url_path)?,
             file_schema: self.schema.clone(),
-            file_groups: vec![partitions],
+            file_groups: partitions,
             statistics: Statistics::default(),
             projection: projection.cloned(),
             limit,

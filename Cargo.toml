@@ -10,3 +10,6 @@ datafusion = "32.0.0"
 envconfig = "0.10.0"
 object_store = { version = "0.7.1", features = ["aws"] }
 tokio = { version = "1.32.0", features = ["full"] }
+
+[profile.release]
+debug = true

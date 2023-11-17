@@ -3,5 +3,5 @@ meta:
 temporal:
   endpoint: localhost:7233
 ingest:
-  ingest_binary_path: ./target/debug/prism-ingest
+  ingest_binary_path: ./target/release/prism-ingest
   s3_endpoint: http://localhost:4566

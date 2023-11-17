@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::Context;
-use console_subscriber::ConsoleLayer;
+use clap::Parser;
 use datafusion::prelude::SessionContext;
 use envconfig::Envconfig;
 use meta::provider::DirectMetaClientProvider;
@@ -19,6 +19,13 @@ use crate::providers::catalog_provider::PrismCatalogProvider;
 mod config;
 mod meta;
 mod providers;
+
+#[derive(Debug, Parser)]
+struct Args {
+    /// If present, run the given SQL query and exit.
+    #[arg(short, long)]
+    sql: Option<String>,
+}
 
 #[derive(Envconfig)]
 struct Config {
@@ -35,7 +42,7 @@ struct Config {
     pub config_path: String,
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread")]
 async fn main() {
     let layer = tracing_subscriber::fmt::layer()
         .with_writer(io::stderr)
@@ -43,11 +50,7 @@ async fn main() {
             tracing_subscriber::EnvFilter::from_default_env().add_directive(Level::INFO.into()),
         )
         .boxed();
-    let console_layer = ConsoleLayer::builder().with_default_env().spawn().boxed();
-    tracing_subscriber::registry()
-        .with(layer)
-        .with(console_layer)
-        .init();
+    tracing_subscriber::registry().with(layer).init();
 
     if let Err(e) = repl().await {
         eprintln!("error: {:?}", e);
@@ -56,6 +59,7 @@ async fn main() {
 }
 
 async fn repl() -> anyhow::Result<()> {
+    let args = Args::parse();
     let env_config = Config::init_from_env()?;
     let config = config::get_config(&env_config.config_path).context("reading config from file")?;
     let store = {
@@ -81,6 +85,12 @@ async fn repl() -> anyhow::Result<()> {
         .register_object_store(&s3_url, Arc::new(store));
     let mut stdin = io::stdin().lock();
     let mut stdout = io::stdout().lock();
+    if let Some(sql) = args.sql {
+        let df = ctx.sql(&sql).await?;
+        df.show().await?;
+        return Ok(());
+    }
+
     loop {
         write!(&mut stdout, "prism> ")?;
         stdout.flush()?;

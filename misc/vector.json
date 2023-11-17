@@ -23,6 +23,7 @@
       "bucket": "ingest",
       "endpoint": "http://localhost:4566",
       "batch": {
+        "max_bytes": 2000000000,
         "timeout_secs": 15
       },
       "encoding": {

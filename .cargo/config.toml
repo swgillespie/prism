@@ -1,2 +1,11 @@
 [build]
-rustflags = ["--cfg", "tokio_unstable"]
+rustflags = ["-C", "target-cpu=native"]
+
+[profile.release]
+debug = true
+lto = true
+debug-assertions = false
+overflow-checks = false
+
+[cargo-new]
+vcs = "none"
