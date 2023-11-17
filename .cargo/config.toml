@@ -3,7 +3,6 @@ rustflags = ["-C", "target-cpu=native"]
 
 [profile.release]
 debug = true
-lto = true
 debug-assertions = false
 overflow-checks = false
 
