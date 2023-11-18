@@ -98,6 +98,10 @@ fn column_type_to_datafusion(ty: ColumnType) -> DataType {
         ColumnType::Int64 => DataType::Int64,
         ColumnType::Utf8 => DataType::Utf8,
         ColumnType::Timestamp => DataType::Timestamp(TimeUnit::Millisecond, None),
+        ColumnType::Int16 => DataType::Int16,
+        ColumnType::Int32 => DataType::Int32,
+        ColumnType::Uint16 => DataType::UInt16,
+        ColumnType::Binary => DataType::Binary,
         ColumnType::Unspecified => unimplemented!(),
     }
 }

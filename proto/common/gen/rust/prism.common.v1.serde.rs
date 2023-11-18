@@ -120,6 +120,10 @@ impl serde::Serialize for ColumnType {
             Self::Int64 => "COLUMN_TYPE_INT64",
             Self::Utf8 => "COLUMN_TYPE_UTF8",
             Self::Timestamp => "COLUMN_TYPE_TIMESTAMP",
+            Self::Int16 => "COLUMN_TYPE_INT16",
+            Self::Int32 => "COLUMN_TYPE_INT32",
+            Self::Uint16 => "COLUMN_TYPE_UINT16",
+            Self::Binary => "COLUMN_TYPE_BINARY",
         };
         serializer.serialize_str(variant)
     }
@@ -135,6 +139,10 @@ impl<'de> serde::Deserialize<'de> for ColumnType {
             "COLUMN_TYPE_INT64",
             "COLUMN_TYPE_UTF8",
             "COLUMN_TYPE_TIMESTAMP",
+            "COLUMN_TYPE_INT16",
+            "COLUMN_TYPE_INT32",
+            "COLUMN_TYPE_UINT16",
+            "COLUMN_TYPE_BINARY",
         ];
 
         struct GeneratedVisitor;
@@ -181,6 +189,10 @@ impl<'de> serde::Deserialize<'de> for ColumnType {
                     "COLUMN_TYPE_INT64" => Ok(ColumnType::Int64),
                     "COLUMN_TYPE_UTF8" => Ok(ColumnType::Utf8),
                     "COLUMN_TYPE_TIMESTAMP" => Ok(ColumnType::Timestamp),
+                    "COLUMN_TYPE_INT16" => Ok(ColumnType::Int16),
+                    "COLUMN_TYPE_INT32" => Ok(ColumnType::Int32),
+                    "COLUMN_TYPE_UINT16" => Ok(ColumnType::Uint16),
+                    "COLUMN_TYPE_BINARY" => Ok(ColumnType::Binary),
                     _ => Err(serde::de::Error::unknown_variant(value, FIELDS)),
                 }
             }

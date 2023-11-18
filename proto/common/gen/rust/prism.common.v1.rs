@@ -40,6 +40,12 @@ pub enum ColumnType {
     Int64 = 1,
     Utf8 = 2,
     Timestamp = 3,
+    /// These values are not ingested natively by Prism but are present in some
+    /// benchmark Parquet datasets that we use.
+    Int16 = 4,
+    Int32 = 5,
+    Uint16 = 6,
+    Binary = 7,
 }
 impl ColumnType {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -52,6 +58,10 @@ impl ColumnType {
             ColumnType::Int64 => "COLUMN_TYPE_INT64",
             ColumnType::Utf8 => "COLUMN_TYPE_UTF8",
             ColumnType::Timestamp => "COLUMN_TYPE_TIMESTAMP",
+            ColumnType::Int16 => "COLUMN_TYPE_INT16",
+            ColumnType::Int32 => "COLUMN_TYPE_INT32",
+            ColumnType::Uint16 => "COLUMN_TYPE_UINT16",
+            ColumnType::Binary => "COLUMN_TYPE_BINARY",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -61,6 +71,10 @@ impl ColumnType {
             "COLUMN_TYPE_INT64" => Some(Self::Int64),
             "COLUMN_TYPE_UTF8" => Some(Self::Utf8),
             "COLUMN_TYPE_TIMESTAMP" => Some(Self::Timestamp),
+            "COLUMN_TYPE_INT16" => Some(Self::Int16),
+            "COLUMN_TYPE_INT32" => Some(Self::Int32),
+            "COLUMN_TYPE_UINT16" => Some(Self::Uint16),
+            "COLUMN_TYPE_BINARY" => Some(Self::Binary),
             _ => None,
         }
     }

@@ -28,4 +28,11 @@ enum ColumnType {
   COLUMN_TYPE_INT64 = 1;
   COLUMN_TYPE_UTF8 = 2;
   COLUMN_TYPE_TIMESTAMP = 3;
+
+  // These values are not ingested natively by Prism but are present in some
+  // benchmark Parquet datasets that we use.
+  COLUMN_TYPE_INT16 = 4;
+  COLUMN_TYPE_INT32 = 5;
+  COLUMN_TYPE_UINT16 = 6;
+  COLUMN_TYPE_BINARY = 7;
 }
