@@ -25,7 +25,7 @@ build: generate build-go build-rust ## Builds all targets.
 $(OUT):
 	mkdir -p $(OUT)
 
-build-go: build-meta build-ingest-worker build-ingest-event-listener ## Builds all Go targets.
+build-go: build-meta build-ingest-worker build-ingest-event-listener build-api ## Builds all Go targets.
 
 build-meta: $(OUT) ## Builds the Meta service.
 	go build -o $(OUT)/prism-meta ./go/services/prism-meta
@@ -35,6 +35,9 @@ build-ingest-worker: $(OUT) ## Builds the ingest worker.
 
 build-ingest-event-listener: $(OUT) ## Builds the ingest event listener.
 	go build -o $(OUT)/prism-ingest-event-listener ./go/services/prism-ingest-event-listener
+
+build-api: $(OUT) ## Builds the API server.
+	go build -o $(OUT)/prism-api ./go/services/prism-api
 
 build-rust: build-ingest build-query ## Builds all Rust targets.
 
