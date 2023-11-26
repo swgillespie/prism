@@ -31,5 +31,5 @@ jobs:
           go-version: "^1.21.1"
       - name: "Setup Rust Cache"
         uses: Swatinem/rust-cache@v2
-            - name: "Run"
+      - name: "Run"
         run: make ci
