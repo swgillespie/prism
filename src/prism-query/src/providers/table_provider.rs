@@ -122,7 +122,7 @@ impl TableProvider for PrismTableProvider {
         let df_schema = self.schema.clone().to_dfschema()?;
         let props = ExecutionProps::new();
         let and_expr = filters
-            .into_iter()
+            .iter()
             .fold(Expr::Literal(ScalarValue::Boolean(Some(true))), |acc, f| {
                 expr_fn::and(acc, f.clone())
             });

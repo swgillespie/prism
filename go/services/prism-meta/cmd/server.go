@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
+	"code.prism.io/go/pkg/must"
 	commonv1 "code.prism.io/proto/common/gen/go/prism/common/v1"
 	metav1 "code.prism.io/proto/rpc/gen/go/prism/meta/v1"
 )
@@ -239,7 +240,7 @@ func newGrpcServer(s *server, lifecycle fx.Lifecycle) *grpc.Server {
 
 	lifecycle.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			go grpcServer.Serve(lis)
+			go must.NoError(grpcServer.Serve(lis))
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {

@@ -119,5 +119,5 @@ fn initialize_session(args: &Args, ctx: &SessionContext) -> anyhow::Result<Inges
     ctx.runtime_env()
         .register_object_store(&destination_url, Arc::new(destination_store));
     let ingestor = Ingestor::new(&args.source, &args.destination);
-    return Ok(ingestor);
+    Ok(ingestor)
 }
