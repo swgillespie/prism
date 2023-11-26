@@ -57,7 +57,7 @@ clean:
 lint: lint-go lint-rust ## Run all linters
 
 lint-go: ## Lint all Go code
-	golangci-lint run ./go/...
+	golangci-lint run --timeout 120s ./go/...
 
 lint-rust: ## Lint all Rust code
 	cargo clippy --all-targets --all-features -- -D warnings
