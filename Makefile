@@ -72,9 +72,6 @@ test-go: ## Run all Go tests
 test-rust: ## Run all Rust tests
 	cargo test
 
-## Continuous Integration
-ci: lint test ## Run all checks in continous integration
-
 ## Dev
 
 install-dependencies: ## Installs all compile-time dependencies.
