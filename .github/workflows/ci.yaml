@@ -1,4 +1,4 @@
-name: "Build, Test, and Lint"
+name: "CI"
 on:
   push:
     branches:
@@ -38,6 +38,8 @@ jobs:
         with:
           toolchain: stable
           components: rustfmt, clippy
+      - name: "Setup Rust Cache"
+        uses: Swatinem/rust-cache@v2
       - name: "Lint"
         run: make lint-rust
   test:
