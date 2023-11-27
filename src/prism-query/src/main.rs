@@ -97,12 +97,12 @@ async fn repl() -> anyhow::Result<()> {
         let mut buf = String::new();
         stdin.read_line(&mut buf)?;
         let buf = buf.trim();
-        if buf == "quit" || buf == "" {
+        if buf == "quit" || buf.is_empty() {
             break;
         }
 
         let start = Instant::now();
-        let df = match ctx.sql(&buf).await {
+        let df = match ctx.sql(buf).await {
             Ok(df) => df,
             Err(e) => {
                 writeln!(&mut stdout, "sql error: {}", e)?;

@@ -5,6 +5,7 @@ CYAN   := $(shell tput -Txterm setaf 6)
 RESET  := $(shell tput -Txterm sgr0)
 
 OUT := ./out
+GOPATH := $(shell go env GOPATH)
 
 ## Generate
 
@@ -27,6 +28,8 @@ $(OUT):
 
 build-go: build-meta build-ingest-worker build-ingest-event-listener build-api ## Builds all Go targets.
 
+build-rust: build-ingest build-query ## Builds all Rust targets.
+
 build-meta: $(OUT) ## Builds the Meta service.
 	go build -o $(OUT)/prism-meta ./go/services/prism-meta
 
@@ -39,8 +42,6 @@ build-ingest-event-listener: $(OUT) ## Builds the ingest event listener.
 build-api: $(OUT) ## Builds the API server.
 	go build -o $(OUT)/prism-api ./go/services/prism-api
 
-build-rust: build-ingest build-query ## Builds all Rust targets.
-
 build-ingest:
 	cargo build --bin prism-ingest
 	cp ./target/debug/prism-ingest $(OUT)/prism-ingest
@@ -52,14 +53,23 @@ build-query:
 clean:
 	rm -rf $(OUT)
 
+## Lint
+lint: lint-go lint-rust ## Run all linters
+
+lint-go: ## Lint all Go code
+	golangci-lint run --timeout 120s ./go/...
+
+lint-rust: ## Lint all Rust code
+	cargo clippy --all-targets --all-features -- -D warnings
+
 ## Test
 
-test: generate test-go test-rust
+test: generate test-go test-rust ## Run all tests
 
-test-go:
+test-go: ## Run all Go tests
 	go test -cover ./go/...
 
-test-rust:
+test-rust: ## Run all Rust tests
 	cargo test
 
 ## Dev
@@ -71,6 +81,7 @@ install-dependencies: ## Installs all compile-time dependencies.
 	go install github.com/golang/mock/mockgen@v1.6.0
 	go install github.com/bufbuild/buf/cmd/buf@v1.27.2
 	go install github.com/cludden/protoc-gen-go-temporal/cmd/protoc-gen-go_temporal@v1.0.2
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.55.2
 
 
 ## Help:

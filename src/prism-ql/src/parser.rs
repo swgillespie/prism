@@ -4,9 +4,9 @@ use crate::ast;
 
 lalrpop_mod!(pql);
 
-pub fn parse<'i>(
-    input: &'i str,
-) -> Result<ast::Query, lalrpop_util::ParseError<usize, pql::Token<'i>, &'static str>> {
+pub fn parse(
+    input: &str,
+) -> Result<ast::Query, lalrpop_util::ParseError<usize, pql::Token<'_>, &'static str>> {
     let parser = pql::QueryParser::new();
     parser.parse(input)
 }

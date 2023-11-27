@@ -75,20 +75,22 @@ func main() {
 		}
 
 		for _, msg := range result.Messages {
-			ctx, _ := context.WithTimeout(context.Background(), time.Duration(ingestConfig.MessageHandleTimeoutSeconds)*time.Second)
-			err := handler.HandleMessage(ctx, msg)
-			if err != nil {
-				logger.Error("failed to handle message", zap.Error(err))
-				continue
-			}
+			func() {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Duration(ingestConfig.MessageHandleTimeoutSeconds)*time.Second)
+				defer cancel()
+				err := handler.HandleMessage(ctx, msg)
+				if err != nil {
+					logger.Error("failed to handle message", zap.Error(err))
+				}
 
-			_, err = sqsClient.DeleteMessage(&sqs.DeleteMessageInput{
-				QueueUrl:      aws.String(ingestConfig.SQSQueueEndpoint),
-				ReceiptHandle: msg.ReceiptHandle,
-			})
-			if err != nil {
-				logger.Error("failed to delete message", zap.Error(err))
-			}
+				_, err = sqsClient.DeleteMessage(&sqs.DeleteMessageInput{
+					QueueUrl:      aws.String(ingestConfig.SQSQueueEndpoint),
+					ReceiptHandle: msg.ReceiptHandle,
+				})
+				if err != nil {
+					logger.Error("failed to delete message", zap.Error(err))
+				}
+			}()
 		}
 	}
 }
