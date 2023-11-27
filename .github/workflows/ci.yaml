@@ -13,27 +13,37 @@ concurrency:
 
 jobs:
   lint-go:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-go@v4
-      with:
-        go-version: "^1.21.1"
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@v3
-      with:
-        version: v1.55
+    env:
+      CARGO_TERM_COLOR: always
+    name: "Go Lint"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: "^1.21.1"
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.55
   lint-rust:
-    - uses: actions/checkout@v3
-    - name: "Install Rust"
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        components: rustfmt, clippy
-    - name: "Lint"
-      run: make lint-rust
+    env:
+      CARGO_TERM_COLOR: always
+    name: "Rust Lint"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Install Rust"
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - name: "Lint"
+        run: make lint-rust
   test:
     env:
       CARGO_TERM_COLOR: always
-    name: "Lint"
+    name: "Test"
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout"
